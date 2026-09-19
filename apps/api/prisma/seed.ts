@@ -184,6 +184,7 @@ const DEFAULT_COA: [string, string, string, string | null, AccountType, NormalBa
   ["1143", "Finished Goods Inventory", "مخزون تام الصنع", "1140", "ASSET", "DEBIT", false],
   ["1144", "Trading Goods Inventory", "مخزون بضاعة تجارية", "1140", "ASSET", "DEBIT", false],
   ["1150", "Prepaid Expenses", "مصروفات مدفوعة مقدمًا", "1100", "ASSET", "DEBIT", false],
+  ["1160", "Employee Loans Receivable", "قروض موظفين", "1100", "ASSET", "DEBIT", false],
   ["1200", "Fixed Assets", "الأصول الثابتة", "1000", "ASSET", "DEBIT", true],
   ["1210", "Land", "أراضي", "1200", "ASSET", "DEBIT", false],
   ["1220", "Buildings", "مباني", "1200", "ASSET", "DEBIT", false],
@@ -199,6 +200,7 @@ const DEFAULT_COA: [string, string, string, string | null, AccountType, NormalBa
   ["2120", "Tax Payable", "ضرائب مستحقة الدفع", "2100", "LIABILITY", "CREDIT", false],
   ["2130", "Accrued Expenses", "مصروفات مستحقة", "2100", "LIABILITY", "CREDIT", false],
   ["2140", "Salaries Payable", "رواتب مستحقة الدفع", "2100", "LIABILITY", "CREDIT", false],
+  ["2150", "Payroll Deductions Payable", "استقطاعات رواتب مستحقة", "2100", "LIABILITY", "CREDIT", false],
   ["2200", "Long-term Liabilities", "الالتزامات طويلة الأجل", "2000", "LIABILITY", "CREDIT", true],
   ["2210", "Long-term Loans", "قروض طويلة الأجل", "2200", "LIABILITY", "CREDIT", false],
 

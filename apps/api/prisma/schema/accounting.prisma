@@ -118,6 +118,7 @@ enum JournalSourceType {
   INVENTORY_ADJUSTMENT
   CURRENCY_REVALUATION
   FIXED_ASSET
+  EMPLOYEE_LOAN
 }
 
 model JournalEntry {

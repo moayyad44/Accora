@@ -149,6 +149,11 @@ export class CompaniesService {
       // debit (loss) or credit (gain) line on disposal, same pattern as
       // DEFAULT_INVENTORY_ADJUSTMENT above.
       { key: "DEFAULT_ASSET_DISPOSAL_GAINLOSS", code: "5490" },
+      // HR & Payroll (Phase 9).
+      { key: "DEFAULT_SALARY_EXPENSE", code: "5410" },
+      { key: "DEFAULT_SALARIES_PAYABLE", code: "2140" },
+      { key: "DEFAULT_PAYROLL_DEDUCTIONS_PAYABLE", code: "2150" },
+      { key: "DEFAULT_EMPLOYEE_LOANS_RECEIVABLE", code: "1160" },
     ];
 
     for (const m of mappings) {

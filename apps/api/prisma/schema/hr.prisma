@@ -129,6 +129,11 @@ model PayrollItem {
   amount       Decimal         @db.Decimal(18, 4)
   costCenterId String?         @db.Uuid
   costCenter   CostCenter?     @relation(fields: [costCenterId], references: [id])
+  /// Which loan this item repays — required (and validated against the
+  /// loan's own remaining balance) only when type = LOAN_REPAYMENT.
+  loanId       String?         @db.Uuid
+  loan         Loan?           @relation(fields: [loanId], references: [id])
+  note         String?
 
   @@map("payroll_items")
 }
@@ -173,13 +178,17 @@ model Leave {
 }
 
 model Loan {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  employeeId       String   @db.Uuid
-  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  amount           Decimal  @db.Decimal(18, 4)
-  installments     Int
-  remainingBalance Decimal  @db.Decimal(18, 4)
-  startDate        DateTime @db.Date
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId           String   @db.Uuid
+  employee             Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount               Decimal  @db.Decimal(18, 4)
+  installments         Int
+  remainingBalance     Decimal  @db.Decimal(18, 4)
+  startDate            DateTime @db.Date
+  postedJournalEntryId String?  @db.Uuid
+  createdAt            DateTime @default(now())
+
+  repayments PayrollItem[]
 
   @@map("loans")
 }
