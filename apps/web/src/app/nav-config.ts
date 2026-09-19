@@ -34,6 +34,11 @@ import {
   Wallet,
   Percent,
   Layers,
+  Banknote,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Repeat,
+  ClipboardSignature,
 } from "lucide-react";
 
 export interface NavItem {
@@ -239,6 +244,31 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: "/tax/types", labelKey: "tax.taxTypes", icon: Percent, permission: "tax.tax_type.view" },
       { path: "/tax/groups", labelKey: "tax.taxGroups", icon: Layers, permission: "tax.tax_group.view" },
+    ],
+  },
+  {
+    labelKey: "nav.banking",
+    items: [
+      { path: "/banking/accounts", labelKey: "banking.accounts", icon: Banknote, permission: "banking.cash_bank_account.view" },
+      {
+        path: "/banking/receipt-vouchers",
+        labelKey: "banking.receiptVouchers",
+        icon: ArrowDownToLine,
+        permission: "banking.receipt_voucher.view",
+      },
+      {
+        path: "/banking/payment-vouchers",
+        labelKey: "banking.paymentVouchers",
+        icon: ArrowUpFromLine,
+        permission: "banking.payment_voucher.view",
+      },
+      { path: "/banking/transfers", labelKey: "banking.transfers", icon: Repeat, permission: "banking.bank_transfer.view" },
+      {
+        path: "/banking/reconciliation",
+        labelKey: "banking.reconciliation",
+        icon: ClipboardSignature,
+        permission: "banking.bank_reconciliation.view",
+      },
     ],
   },
 ];

@@ -50,6 +50,11 @@ import { PayrollRunDetailPage } from "@/features/hr/PayrollRunDetailPage";
 import { TaxTypesPage } from "@/features/tax/TaxTypesPage";
 import { TaxTypeDetailPage } from "@/features/tax/TaxTypeDetailPage";
 import { TaxGroupsPage } from "@/features/tax/TaxGroupsPage";
+import { CashBankAccountsPage } from "@/features/banking/CashBankAccountsPage";
+import { ReceiptVouchersPage } from "@/features/banking/ReceiptVouchersPage";
+import { PaymentVouchersPage } from "@/features/banking/PaymentVouchersPage";
+import { BankTransfersPage } from "@/features/banking/BankTransfersPage";
+import { ReconciliationPage } from "@/features/banking/ReconciliationPage";
 import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
 import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
 import { SalesInvoiceDetailPage } from "@/features/sales/SalesInvoiceDetailPage";
@@ -129,6 +134,12 @@ export function AppRouter() {
           <Route path="/tax/types" element={<TaxTypesPage />} />
           <Route path="/tax/types/:id" element={<TaxTypeDetailPage />} />
           <Route path="/tax/groups" element={<TaxGroupsPage />} />
+
+          <Route path="/banking/accounts" element={<CashBankAccountsPage />} />
+          <Route path="/banking/receipt-vouchers" element={<ReceiptVouchersPage />} />
+          <Route path="/banking/payment-vouchers" element={<PaymentVouchersPage />} />
+          <Route path="/banking/transfers" element={<BankTransfersPage />} />
+          <Route path="/banking/reconciliation" element={<ReconciliationPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />
