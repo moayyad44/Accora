@@ -63,13 +63,17 @@ export class CompaniesService {
       data: { companyId, baseCurrencyId: baseCurrency.id },
     });
 
-    await this.cloneChartOfAccounts(tx, companyId);
+    const codeToAccountId = await this.cloneChartOfAccounts(tx, companyId);
+    await this.seedDefaultAccountMappings(tx, companyId, codeToAccountId);
     const companyAdminRoleId = await this.cloneRoleTemplates(tx, companyId);
 
     return { companyId, companyAdminRoleId };
   }
 
-  private async cloneChartOfAccounts(tx: Prisma.TransactionClient, companyId: string) {
+  /** Returns the map of template account code -> newly created Account id,
+   * so callers (seedDefaultAccountMappings) can wire company-level default
+   * accounts to specific cloned accounts without a second DB round trip. */
+  private async cloneChartOfAccounts(tx: Prisma.TransactionClient, companyId: string): Promise<Map<string, string>> {
     const template = await tx.accountTemplate.findUnique({
       where: { name: "Standard Template" },
       include: { lines: true },
@@ -105,6 +109,37 @@ export class CompaniesService {
       const childId = codeToId.get(line.code);
       if (!parentId || !childId) continue;
       await tx.account.update({ where: { id: childId }, data: { parentId } });
+    }
+
+    return codeToId;
+  }
+
+  /**
+   * Configures the company-wide default GL accounts (docs/ARCHITECTURE.md
+   * §5: "الحسابات الافتراضية قابلة للتهيئة لكل شركة... لا شيء hardcoded").
+   * These are the accounts Sales/Purchasing (Phase 5) post to when a
+   * customer/supplier/item doesn't specify a more specific override — never
+   * hardcoded account IDs inside the posting logic itself. Every mapping
+   * created here remains freely editable afterwards via
+   * PATCH /accounting/account-mappings/:key.
+   */
+  private async seedDefaultAccountMappings(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    codeToAccountId: Map<string, string>,
+  ) {
+    const mappings: { key: string; code: string }[] = [
+      { key: "DEFAULT_AR", code: "1131" }, // Trade Receivables
+      { key: "DEFAULT_AP", code: "2111" }, // Trade Payables
+      { key: "DEFAULT_SALES_REVENUE", code: "4100" }, // Sales Revenue
+      { key: "DEFAULT_INVENTORY", code: "1144" }, // Trading Goods Inventory
+      { key: "DEFAULT_TAX_PAYABLE", code: "2120" }, // Tax Payable
+    ];
+
+    for (const m of mappings) {
+      const accountId = codeToAccountId.get(m.code);
+      if (!accountId) continue; // template changed and no longer has this code — skip rather than fail company creation
+      await tx.accountMapping.create({ data: { companyId, key: m.key, accountId } });
     }
   }
 

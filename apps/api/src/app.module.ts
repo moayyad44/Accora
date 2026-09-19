@@ -7,6 +7,10 @@ import { CompaniesModule } from "./companies/companies.module";
 import { UsersModule } from "./users/users.module";
 import { RolesModule } from "./roles/roles.module";
 import { AccountingModule } from "./accounting/accounting.module";
+import { PartiesModule } from "./parties/parties.module";
+import { CatalogModule } from "./catalog/catalog.module";
+import { SalesModule } from "./sales/sales.module";
+import { PurchasingModule } from "./purchasing/purchasing.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -19,6 +23,10 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     UsersModule,
     RolesModule,
     AccountingModule,
+    PartiesModule,
+    CatalogModule,
+    SalesModule,
+    PurchasingModule,
   ],
   providers: [
     // Order matters: JwtAuthGuard runs first and populates request.user,

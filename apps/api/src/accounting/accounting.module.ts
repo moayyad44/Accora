@@ -10,6 +10,8 @@ import { JournalEntriesService } from "./journal-entries.service";
 import { JournalEntriesController } from "./journal-entries.controller";
 import { ReportsService } from "./reports.service";
 import { ReportsController } from "./reports.controller";
+import { AccountMappingsService } from "./account-mappings.service";
+import { AccountMappingsController } from "./account-mappings.controller";
 
 @Module({
   providers: [
@@ -19,6 +21,7 @@ import { ReportsController } from "./reports.controller";
     NumberingService,
     JournalEntriesService,
     ReportsService,
+    AccountMappingsService,
   ],
   controllers: [
     FiscalController,
@@ -26,7 +29,8 @@ import { ReportsController } from "./reports.controller";
     CostCentersController,
     JournalEntriesController,
     ReportsController,
+    AccountMappingsController,
   ],
-  exports: [FiscalService, AccountsService, JournalEntriesService],
+  exports: [FiscalService, AccountsService, JournalEntriesService, AccountMappingsService, NumberingService],
 })
 export class AccountingModule {}
