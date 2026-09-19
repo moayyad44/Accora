@@ -2,6 +2,7 @@ import { Type } from "class-transformer";
 import { InvoiceKind } from "@prisma/client";
 import {
   ArrayMinSize,
+  IsArray,
   IsDateString,
   IsEnum,
   IsNumberString,
@@ -31,6 +32,13 @@ class SalesInvoiceLineDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  /** Required when the item's trackingType is SERIAL — the specific units
+   * to ship; length must equal qty. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  serialNumbers?: string[];
 }
 
 export class CreateSalesInvoiceDto {

@@ -17,6 +17,9 @@ export interface StockAdjustmentInput {
   unitCost?: string;
   reason: string;
   adjustmentDate?: Date;
+  /** Required for INCREASE when the item is batch-tracked. */
+  batchNumber?: string;
+  expiryDate?: Date;
 }
 
 /**
@@ -59,6 +62,7 @@ export class StockAdjustmentsService {
         unitCost: input.unitCost,
         sourceType: StockMoveSourceType.MANUAL_ADJUSTMENT,
         moveDate: adjustmentDate,
+        batch: input.batchNumber ? { batchNumber: input.batchNumber, expiryDate: input.expiryDate } : undefined,
       });
       amount = new Decimal(move.qty.toString()).times(move.unitCost.toString()).toFixed(4);
       lines = [

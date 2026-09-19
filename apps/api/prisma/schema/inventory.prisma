@@ -244,6 +244,11 @@ model FifoLayer {
   qtyRemaining      Decimal   @db.Decimal(18, 4)
   unitCost          Decimal   @db.Decimal(18, 4)
   sourceStockMoveId String    @db.Uuid
+  /// Set when the item is BATCH-tracked and valued by FIFO — lets a batch's
+  /// remaining quantity be computed as SUM(qtyRemaining) across its layers,
+  /// and its cost stay tied to each layer's own receipt price.
+  batchId           String?   @db.Uuid
+  batch             Batch?    @relation(fields: [batchId], references: [id])
 
   @@index([companyId, itemId, warehouseId, receivedAt])
   @@map("fifo_layers")
@@ -258,6 +263,7 @@ model Batch {
   expiryDate      DateTime? @db.Date
 
   stockMoves StockMove[]
+  fifoLayers FifoLayer[]
 
   @@unique([itemId, batchNumber])
   @@map("batches")

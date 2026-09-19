@@ -1,5 +1,14 @@
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsDateString, IsNumberString, IsOptional, IsUUID, ValidateNested } from "class-validator";
+import {
+  ArrayMinSize,
+  IsArray,
+  IsDateString,
+  IsNumberString,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateNested,
+} from "class-validator";
 
 class PurchaseInvoiceLineDto {
   @IsUUID()
@@ -13,6 +22,21 @@ class PurchaseInvoiceLineDto {
 
   @IsNumberString()
   unitCost!: string;
+
+  /** Required when the item's trackingType is BATCH. */
+  @IsOptional()
+  @IsString()
+  batchNumber?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expiryDate?: string;
+
+  /** Required when the item's trackingType is SERIAL — length must equal qty. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  serialNumbers?: string[];
 }
 
 export class CreatePurchaseInvoiceDto {

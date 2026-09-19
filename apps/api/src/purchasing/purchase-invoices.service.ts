@@ -5,6 +5,7 @@ import { NumberingService } from "../accounting/numbering.service";
 import { AccountMappingsService } from "../accounting/account-mappings.service";
 import { JournalEntriesService } from "../accounting/journal-entries.service";
 import { InventoryService } from "../inventory/inventory.service";
+import { SerialTrackingService } from "../inventory/serial-tracking.service";
 
 export interface PurchaseInvoiceLineInput {
   itemId: string;
@@ -12,6 +13,11 @@ export interface PurchaseInvoiceLineInput {
   qty: string;
   unitCost: string;
   description?: string;
+  /** Required when the item's trackingType is BATCH. */
+  batchNumber?: string;
+  expiryDate?: Date;
+  /** Required when the item's trackingType is SERIAL — length must equal qty. */
+  serialNumbers?: string[];
 }
 
 export interface CreatePurchaseInvoiceInput {
@@ -45,6 +51,7 @@ export class PurchaseInvoicesService {
     private readonly accountMappingsService: AccountMappingsService,
     private readonly journalEntriesService: JournalEntriesService,
     private readonly inventoryService: InventoryService,
+    private readonly serialTrackingService: SerialTrackingService,
   ) {}
 
   async create(tx: Prisma.TransactionClient, companyId: string, input: CreatePurchaseInvoiceInput) {
@@ -60,6 +67,9 @@ export class PurchaseInvoicesService {
       qty: string;
       unitCost: string;
       lineTotal: string;
+      batchNumber?: string;
+      expiryDate?: Date;
+      serialNumbers: string[];
     }[] = [];
 
     for (const [index, line] of input.lines.entries()) {
@@ -67,6 +77,14 @@ export class PurchaseInvoicesService {
       if (!item) throw new NotFoundException(`Item ${line.itemId} not found`);
       const warehouse = await tx.warehouse.findFirst({ where: { id: line.warehouseId, companyId } });
       if (!warehouse) throw new NotFoundException(`Warehouse ${line.warehouseId} not found`);
+      if (item.trackingType === "BATCH" && !line.batchNumber) {
+        throw new BadRequestException(`Item ${item.sku} is batch-tracked — batchNumber is required on this line`);
+      }
+      if (item.trackingType === "SERIAL" && (line.serialNumbers?.length ?? 0) !== Number(line.qty)) {
+        throw new BadRequestException(
+          `Item ${item.sku} is serial-tracked — provide exactly ${line.qty} serial number(s) on this line`,
+        );
+      }
 
       const qty = new Decimal(line.qty);
       const unitCost = new Decimal(line.unitCost);
@@ -81,6 +99,9 @@ export class PurchaseInvoicesService {
         qty: qty.toFixed(4),
         unitCost: unitCost.toFixed(4),
         lineTotal: lineTotal.toFixed(4),
+        batchNumber: line.batchNumber,
+        expiryDate: line.expiryDate,
+        serialNumbers: line.serialNumbers ?? [],
       });
     }
 
@@ -149,15 +170,29 @@ export class PurchaseInvoicesService {
     const posted = await this.journalEntriesService.post(tx, companyId, userId, entry.id);
 
     for (const line of invoice.lines) {
-      await this.inventoryService.receiveStock(tx, companyId, {
-        itemId: line.itemId,
-        warehouseId: line.warehouseId!,
-        qty: line.qty.toString(),
-        unitCost: line.unitCost.toString(),
-        sourceType: StockMoveSourceType.PURCHASE_INVOICE,
-        sourceId: invoice.id,
-        moveDate: invoice.invoiceDate,
-      });
+      const item = await tx.item.findUniqueOrThrow({ where: { id: line.itemId } });
+      if (item.trackingType === "SERIAL") {
+        await this.serialTrackingService.receive(tx, companyId, {
+          itemId: line.itemId,
+          warehouseId: line.warehouseId!,
+          serialNumbers: line.serialNumbers,
+          unitCost: line.unitCost.toString(),
+          sourceType: StockMoveSourceType.PURCHASE_INVOICE,
+          sourceId: invoice.id,
+          moveDate: invoice.invoiceDate,
+        });
+      } else {
+        await this.inventoryService.receiveStock(tx, companyId, {
+          itemId: line.itemId,
+          warehouseId: line.warehouseId!,
+          qty: line.qty.toString(),
+          unitCost: line.unitCost.toString(),
+          sourceType: StockMoveSourceType.PURCHASE_INVOICE,
+          sourceId: invoice.id,
+          moveDate: invoice.invoiceDate,
+          batch: line.batchNumber ? { batchNumber: line.batchNumber, expiryDate: line.expiryDate ?? undefined } : undefined,
+        });
+      }
     }
 
     return tx.purchaseInvoice.update({

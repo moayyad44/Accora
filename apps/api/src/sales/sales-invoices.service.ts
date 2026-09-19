@@ -5,6 +5,7 @@ import { NumberingService } from "../accounting/numbering.service";
 import { AccountMappingsService } from "../accounting/account-mappings.service";
 import { JournalEntriesService } from "../accounting/journal-entries.service";
 import { InventoryService } from "../inventory/inventory.service";
+import { SerialTrackingService } from "../inventory/serial-tracking.service";
 
 export interface SalesInvoiceLineInput {
   itemId: string;
@@ -13,6 +14,9 @@ export interface SalesInvoiceLineInput {
   unitPrice: string;
   discountAmount?: string;
   description?: string;
+  /** Required when the item's trackingType is SERIAL — the specific units
+   * to ship; length must equal qty. */
+  serialNumbers?: string[];
 }
 
 export interface CreateSalesInvoiceInput {
@@ -46,6 +50,7 @@ export class SalesInvoicesService {
     private readonly accountMappingsService: AccountMappingsService,
     private readonly journalEntriesService: JournalEntriesService,
     private readonly inventoryService: InventoryService,
+    private readonly serialTrackingService: SerialTrackingService,
   ) {}
 
   async create(tx: Prisma.TransactionClient, companyId: string, input: CreateSalesInvoiceInput) {
@@ -63,6 +68,7 @@ export class SalesInvoicesService {
       discountAmount: string;
       lineTotal: string;
       description?: string;
+      serialNumbers: string[];
     }[] = [];
 
     for (const [index, line] of input.lines.entries()) {
@@ -70,6 +76,11 @@ export class SalesInvoicesService {
       if (!item) throw new NotFoundException(`Item ${line.itemId} not found`);
       const warehouse = await tx.warehouse.findFirst({ where: { id: line.warehouseId, companyId } });
       if (!warehouse) throw new NotFoundException(`Warehouse ${line.warehouseId} not found`);
+      if (item.trackingType === "SERIAL" && (line.serialNumbers?.length ?? 0) !== Number(line.qty)) {
+        throw new BadRequestException(
+          `Item ${item.sku} is serial-tracked — provide exactly ${line.qty} serial number(s) on this line`,
+        );
+      }
 
       const qty = new Decimal(line.qty);
       const unitPrice = new Decimal(line.unitPrice);
@@ -87,6 +98,7 @@ export class SalesInvoicesService {
         discountAmount: discount.toFixed(4),
         lineTotal: lineTotal.toFixed(4),
         description: line.description,
+        serialNumbers: line.serialNumbers ?? [],
       });
     }
 
@@ -149,14 +161,25 @@ export class SalesInvoicesService {
     // find out what it actually cost, before touching the GL at all.
     let totalCogs = new Decimal(0);
     for (const line of invoice.lines) {
-      const issued = await this.inventoryService.issueStock(tx, companyId, {
-        itemId: line.itemId,
-        warehouseId: line.warehouseId!,
-        qty: line.qty.toString(),
-        sourceType: StockMoveSourceType.SALES_INVOICE,
-        sourceId: invoice.id,
-        moveDate: invoice.invoiceDate,
-      });
+      const item = await tx.item.findUniqueOrThrow({ where: { id: line.itemId } });
+      const issued =
+        item.trackingType === "SERIAL"
+          ? await this.serialTrackingService.issue(tx, companyId, {
+              itemId: line.itemId,
+              warehouseId: line.warehouseId!,
+              serialNumbers: line.serialNumbers,
+              sourceType: StockMoveSourceType.SALES_INVOICE,
+              sourceId: invoice.id,
+              moveDate: invoice.invoiceDate,
+            })
+          : await this.inventoryService.issueStock(tx, companyId, {
+              itemId: line.itemId,
+              warehouseId: line.warehouseId!,
+              qty: line.qty.toString(),
+              sourceType: StockMoveSourceType.SALES_INVOICE,
+              sourceId: invoice.id,
+              moveDate: invoice.invoiceDate,
+            });
       totalCogs = totalCogs.plus(issued.totalCost);
       await tx.salesInvoiceLine.update({ where: { id: line.id }, data: { unitCost: issued.unitCost } });
     }

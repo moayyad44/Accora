@@ -1,4 +1,4 @@
-import { IsIn, IsNumberString, IsOptional, IsString, IsUUID, MinLength } from "class-validator";
+import { IsDateString, IsIn, IsNumberString, IsOptional, IsString, IsUUID, MinLength } from "class-validator";
 
 export class AdjustStockDto {
   @IsUUID()
@@ -20,4 +20,12 @@ export class AdjustStockDto {
   @IsString()
   @MinLength(1)
   reason!: string;
+
+  @IsOptional()
+  @IsString()
+  batchNumber?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expiryDate?: string;
 }

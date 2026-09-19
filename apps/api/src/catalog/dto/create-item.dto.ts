@@ -1,4 +1,4 @@
-import { ItemTrackingType, ItemType } from "@prisma/client";
+import { InventoryValuationMethod, ItemTrackingType, ItemType } from "@prisma/client";
 import { IsEnum, IsOptional, IsString, IsUUID, MinLength } from "class-validator";
 
 export class CreateItemDto {
@@ -32,4 +32,12 @@ export class CreateItemDto {
   @IsOptional()
   @IsString()
   barcode?: string;
+
+  /** Overrides the company's default inventory valuation method
+   * (CompanySetting.inventoryValuationMethod) for this specific item —
+   * e.g. a company on weighted average overall that still wants FIFO for
+   * its serialized/batch-tracked, high-value items. */
+  @IsOptional()
+  @IsEnum(InventoryValuationMethod)
+  valuationMethodOverride?: InventoryValuationMethod;
 }

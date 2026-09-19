@@ -42,7 +42,7 @@ export class PurchaseInvoicesController {
         invoiceDate: new Date(dto.invoiceDate),
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
         branchId: dto.branchId,
-        lines: dto.lines,
+        lines: dto.lines.map((l) => ({ ...l, expiryDate: l.expiryDate ? new Date(l.expiryDate) : undefined })),
       }),
     );
   }

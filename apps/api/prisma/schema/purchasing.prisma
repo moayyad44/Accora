@@ -219,6 +219,12 @@ model PurchaseInvoiceLine {
   taxGroupId        String?         @db.Uuid
   taxGroup          TaxGroup?       @relation(fields: [taxGroupId], references: [id])
   lineTotal         Decimal         @db.Decimal(18, 4)
+  /// Captured at draft time for a BATCH-tracked item so it survives to
+  /// posting (a separate call/transaction) — see InventoryService.receiveStock.
+  batchNumber       String?
+  expiryDate        DateTime?       @db.Date
+  /// Required for a SERIAL-tracked item — length must equal qty.
+  serialNumbers     String[]        @default([])
 
   @@unique([purchaseInvoiceId, lineNumber])
   @@map("purchase_invoice_lines")

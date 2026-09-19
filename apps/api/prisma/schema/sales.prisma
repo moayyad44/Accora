@@ -186,6 +186,9 @@ model SalesInvoiceLine {
   /// Snapshot of unit cost at time of posting, used to book COGS accurately
   /// even if item costs change later.
   unitCost       Decimal?     @db.Decimal(18, 4)
+  /// Which specific units ship, for a SERIAL-tracked item — length must
+  /// equal qty. Captured at draft time so it survives to posting.
+  serialNumbers  String[]     @default([])
 
   @@unique([salesInvoiceId, lineNumber])
   @@map("sales_invoice_lines")

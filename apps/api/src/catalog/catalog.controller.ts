@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CatalogService } from "./catalog.service";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
@@ -71,6 +71,15 @@ export class ItemsController {
   list(@CurrentUser() user: AccessTokenPayload) {
     const companyId = requireActiveCompany(user);
     return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) => this.catalogService.listItems(tx, companyId));
+  }
+
+  @Get("by-barcode/:barcode")
+  @RequirePermission("inventory", "item", "view")
+  findByBarcode(@CurrentUser() user: AccessTokenPayload, @Param("barcode") barcode: string) {
+    const companyId = requireActiveCompany(user);
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) =>
+      this.catalogService.findByBarcode(tx, companyId, barcode),
+    );
   }
 
   @Post()

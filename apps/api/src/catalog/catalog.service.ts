@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { ItemTrackingType, ItemType, Prisma } from "@prisma/client";
+import { InventoryValuationMethod, ItemTrackingType, ItemType, Prisma } from "@prisma/client";
 
 export interface CreateUnitInput {
   code: string;
@@ -22,6 +22,7 @@ export interface CreateItemInput {
   itemType?: ItemType;
   trackingType?: ItemTrackingType;
   barcode?: string;
+  valuationMethodOverride?: InventoryValuationMethod;
 }
 
 /**
@@ -61,6 +62,18 @@ export class CatalogService {
     return tx.item.findMany({ where: { companyId }, orderBy: { sku: "asc" }, include: { category: true, baseUnit: true } });
   }
 
+  /** POS-style scan lookup. Barcode isn't unique in the schema (a company
+   * might reuse a generic barcode across variants, or not use them at all),
+   * so this returns the active match rather than assuming exactly one. */
+  async findByBarcode(tx: Prisma.TransactionClient, companyId: string, barcode: string) {
+    const item = await tx.item.findFirst({
+      where: { companyId, barcode, isActive: true },
+      include: { category: true, baseUnit: true },
+    });
+    if (!item) throw new NotFoundException(`No active item found with barcode ${barcode}`);
+    return item;
+  }
+
   async createItem(tx: Prisma.TransactionClient, companyId: string, input: CreateItemInput) {
     const existing = await tx.item.findUnique({ where: { companyId_sku: { companyId, sku: input.sku } } });
     if (existing) throw new BadRequestException(`Item SKU ${input.sku} already exists`);
@@ -84,6 +97,7 @@ export class CatalogService {
         itemType: input.itemType ?? ItemType.TRADING,
         trackingType: input.trackingType ?? ItemTrackingType.NONE,
         barcode: input.barcode,
+        valuationMethodOverride: input.valuationMethodOverride,
       },
     });
   }
