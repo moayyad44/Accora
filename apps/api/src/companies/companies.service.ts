@@ -145,6 +145,10 @@ export class CompaniesService {
       { key: "DEFAULT_FINISHED_GOODS_INVENTORY", code: "1143" },
       { key: "DEFAULT_DIRECT_LABOR", code: "5200" },
       { key: "DEFAULT_MANUFACTURING_OVERHEAD", code: "5330" },
+      // Fixed Assets (Phase 8) — one shared account that can carry either a
+      // debit (loss) or credit (gain) line on disposal, same pattern as
+      // DEFAULT_INVENTORY_ADJUSTMENT above.
+      { key: "DEFAULT_ASSET_DISPOSAL_GAINLOSS", code: "5490" },
     ];
 
     for (const m of mappings) {

@@ -52,6 +52,10 @@ model FixedAsset {
   usefulLifeMonths   Int
   depreciationMethod DepreciationMethod @default(STRAIGHT_LINE)
   status             FixedAssetStatus   @default(ACTIVE)
+  /// The journal entry that recorded this asset's acquisition (DR asset
+  /// account / CR the funding account it was paid from) — same convenience
+  /// pointer every other posted document in this system carries.
+  postedJournalEntryId String?          @db.Uuid
   createdAt          DateTime           @default(now())
 
   depreciationSchedules DepreciationSchedule[]

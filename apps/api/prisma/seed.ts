@@ -230,6 +230,7 @@ const DEFAULT_COA: [string, string, string, string | null, AccountType, NormalBa
   ["5460", "Marketing & Advertising", "تسويق وإعلان", "5400", "EXPENSE", "DEBIT", false],
   ["5470", "Bank Charges", "عمولات بنكية", "5400", "EXPENSE", "DEBIT", false],
   ["5480", "Inventory Adjustments", "تسويات المخزون", "5400", "EXPENSE", "DEBIT", false],
+  ["5490", "Gain/Loss on Asset Disposal", "أرباح وخسائر استبعاد الأصول", "5400", "EXPENSE", "DEBIT", false],
   ["5500", "Currency Exchange Loss/Gain", "أرباح وخسائر فروقات عملة", "5000", "EXPENSE", "DEBIT", false],
 ];
 

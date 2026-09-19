@@ -13,6 +13,7 @@ import { InventoryModule } from "./inventory/inventory.module";
 import { SalesModule } from "./sales/sales.module";
 import { PurchasingModule } from "./purchasing/purchasing.module";
 import { ManufacturingModule } from "./manufacturing/manufacturing.module";
+import { FixedAssetsModule } from "./fixed-assets/fixed-assets.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -31,6 +32,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     SalesModule,
     PurchasingModule,
     ManufacturingModule,
+    FixedAssetsModule,
   ],
   providers: [
     // Order matters: JwtAuthGuard runs first and populates request.user,

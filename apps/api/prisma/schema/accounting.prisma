@@ -117,6 +117,7 @@ enum JournalSourceType {
   PRODUCTION_ORDER
   INVENTORY_ADJUSTMENT
   CURRENCY_REVALUATION
+  FIXED_ASSET
 }
 
 model JournalEntry {
