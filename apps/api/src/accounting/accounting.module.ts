@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AuditModule } from "../audit/audit.module";
 import { FiscalService } from "./fiscal.service";
 import { FiscalController } from "./fiscal.controller";
 import { AccountsService } from "./accounts.service";
@@ -14,6 +15,7 @@ import { AccountMappingsService } from "./account-mappings.service";
 import { AccountMappingsController } from "./account-mappings.controller";
 
 @Module({
+  imports: [AuditModule],
   providers: [
     FiscalService,
     AccountsService,

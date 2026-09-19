@@ -7,6 +7,7 @@ import { JournalEntriesService, PostingLineInput } from "../accounting/journal-e
 import { InventoryService } from "../inventory/inventory.service";
 import { SerialTrackingService } from "../inventory/serial-tracking.service";
 import { TaxGroupsService } from "../tax/tax-groups.service";
+import { ApprovalService } from "../approvals/approval.service";
 
 export interface PurchaseInvoiceLineInput {
   itemId: string;
@@ -61,6 +62,7 @@ export class PurchaseInvoicesService {
     private readonly inventoryService: InventoryService,
     private readonly serialTrackingService: SerialTrackingService,
     private readonly taxGroupsService: TaxGroupsService,
+    private readonly approvalService: ApprovalService,
   ) {}
 
   async create(tx: Prisma.TransactionClient, companyId: string, input: CreatePurchaseInvoiceInput) {
@@ -173,6 +175,13 @@ export class PurchaseInvoicesService {
     if (invoice.status !== PurchaseDocStatus.DRAFT) {
       throw new BadRequestException(`Invoice ${invoice.invoiceNumber} is already ${invoice.status.toLowerCase()}`);
     }
+
+    // If the company has configured an approval workflow for
+    // PURCHASE_INVOICE (e.g. "over 5000 needs manager sign-off"), it must
+    // already be APPROVED before anything below touches the ledger or
+    // stock. A company with no such workflow configured sees no change at
+    // all — this is opt-in, not a default gate on every invoice.
+    await this.approvalService.checkApproved(tx, companyId, "PURCHASE_INVOICE", invoice.id, new Decimal(invoice.total.toString()));
 
     const apAccountId =
       invoice.supplier.apAccountId ?? (await this.accountMappingsService.require(tx, companyId, "DEFAULT_AP"));

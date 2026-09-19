@@ -6,6 +6,7 @@ import { CompaniesService } from "../companies/companies.service";
 import { RegisterCompanyDto } from "./dto/register-company.dto";
 import { LoginDto } from "./dto/login.dto";
 import { AccessTokenPayload, RefreshTokenPayload } from "../common/types/auth-user";
+import { AuditLogService } from "../audit/audit-log.service";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -15,6 +16,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly companiesService: CompaniesService,
     private readonly jwtService: JwtService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /** Self-service signup: creates the user AND their first company in one
@@ -65,6 +67,35 @@ export class AuthService {
       const companies = await this.companiesService.listMyCompanies(tx, user.id);
 
       await tx.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+      // The audit_logs RLS policy only allows a NULL companyId row from a
+      // super-admin session; for an ordinary user, switch into their
+      // default company's context first so the row satisfies the normal
+      // "companyId matches the session" branch instead — nothing else
+      // runs in this transaction after this point.
+      const defaultCompany = companies[0];
+      if (defaultCompany) {
+        await this.prisma.setSessionContext(tx, {
+          companyId: defaultCompany.companyId,
+          userId: user.id,
+          isSuperAdmin: user.isSuperAdmin,
+        });
+        await this.auditLogService.record(tx, {
+          companyId: defaultCompany.companyId,
+          userId: user.id,
+          action: "LOGIN",
+          entityType: "User",
+          entityId: user.id,
+        });
+      } else if (user.isSuperAdmin) {
+        await this.auditLogService.record(tx, {
+          companyId: null,
+          userId: user.id,
+          action: "LOGIN",
+          entityType: "User",
+          entityId: user.id,
+        });
+      }
 
       return { user, companies };
     });

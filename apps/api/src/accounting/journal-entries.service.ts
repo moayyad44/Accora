@@ -4,6 +4,7 @@ import Decimal from "decimal.js";
 import { FiscalService } from "./fiscal.service";
 import { AccountsService } from "./accounts.service";
 import { NumberingService } from "./numbering.service";
+import { AuditLogService } from "../audit/audit-log.service";
 
 export interface PostingLineInput {
   accountId: string;
@@ -42,6 +43,7 @@ export class JournalEntriesService {
     private readonly fiscalService: FiscalService,
     private readonly accountsService: AccountsService,
     private readonly numberingService: NumberingService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async createDraft(tx: Prisma.TransactionClient, companyId: string, userId: string, input: CreateJournalEntryInput) {
@@ -124,11 +126,28 @@ export class JournalEntriesService {
     // Re-check: the period could have been closed between draft creation and posting.
     await this.fiscalService.requireOpenPeriodForDate(tx, companyId, entry.entryDate);
 
-    return tx.journalEntry.update({
+    const posted = await tx.journalEntry.update({
       where: { id: journalEntryId },
       data: { status: JournalEntryStatus.POSTED, postedById: userId, postedAt: new Date() },
       include: { lines: { include: { account: true } } },
     });
+
+    await this.auditLogService.record(tx, {
+      companyId,
+      userId,
+      action: "POST",
+      entityType: "JournalEntry",
+      entityId: posted.id,
+      after: {
+        entryNumber: posted.entryNumber,
+        sourceType: posted.sourceType,
+        sourceId: posted.sourceId,
+        entryDate: posted.entryDate,
+        lines: posted.lines.map((l) => ({ account: l.account.code, debit: l.debit.toString(), credit: l.credit.toString() })),
+      },
+    });
+
+    return posted;
   }
 
   async reverse(tx: Prisma.TransactionClient, companyId: string, userId: string, journalEntryId: string, reversalDate?: Date) {
@@ -176,6 +195,16 @@ export class JournalEntriesService {
     });
 
     await tx.journalEntry.update({ where: { id: original.id }, data: { status: JournalEntryStatus.REVERSED } });
+
+    await this.auditLogService.record(tx, {
+      companyId,
+      userId,
+      action: "REVERSE",
+      entityType: "JournalEntry",
+      entityId: original.id,
+      before: { status: "POSTED", entryNumber: original.entryNumber },
+      after: { status: "REVERSED", reversalEntryId: reversal.id, reversalEntryNumber: reversal.entryNumber },
+    });
 
     return reversal;
   }

@@ -18,6 +18,8 @@ import { HrModule } from "./hr/hr.module";
 import { TaxModule } from "./tax/tax.module";
 import { BankingModule } from "./banking/banking.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { AuditModule } from "./audit/audit.module";
+import { ApprovalsModule } from "./approvals/approvals.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -41,6 +43,8 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     TaxModule,
     BankingModule,
     DashboardModule,
+    AuditModule,
+    ApprovalsModule,
   ],
   providers: [
     // Order matters: JwtAuthGuard runs first and populates request.user,
