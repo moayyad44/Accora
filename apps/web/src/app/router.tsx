@@ -35,6 +35,11 @@ import { StandardCostsPage } from "@/features/manufacturing/StandardCostsPage";
 import { ProductionOrdersListPage } from "@/features/manufacturing/ProductionOrdersListPage";
 import { NewProductionOrderPage } from "@/features/manufacturing/NewProductionOrderPage";
 import { ProductionOrderDetailPage } from "@/features/manufacturing/ProductionOrderDetailPage";
+import { AssetCategoriesPage } from "@/features/fixed-assets/AssetCategoriesPage";
+import { FixedAssetsListPage } from "@/features/fixed-assets/FixedAssetsListPage";
+import { NewFixedAssetPage } from "@/features/fixed-assets/NewFixedAssetPage";
+import { FixedAssetDetailPage } from "@/features/fixed-assets/FixedAssetDetailPage";
+import { DepreciationRunPage } from "@/features/fixed-assets/DepreciationRunPage";
 import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
 import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
 import { SalesInvoiceDetailPage } from "@/features/sales/SalesInvoiceDetailPage";
@@ -96,6 +101,12 @@ export function AppRouter() {
           <Route path="/manufacturing/production-orders" element={<ProductionOrdersListPage />} />
           <Route path="/manufacturing/production-orders/new" element={<NewProductionOrderPage />} />
           <Route path="/manufacturing/production-orders/:id" element={<ProductionOrderDetailPage />} />
+
+          <Route path="/fixed-assets/categories" element={<AssetCategoriesPage />} />
+          <Route path="/fixed-assets/assets" element={<FixedAssetsListPage />} />
+          <Route path="/fixed-assets/assets/new" element={<NewFixedAssetPage />} />
+          <Route path="/fixed-assets/assets/:id" element={<FixedAssetDetailPage />} />
+          <Route path="/fixed-assets/depreciation-runs" element={<DepreciationRunPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />

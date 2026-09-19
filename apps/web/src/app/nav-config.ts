@@ -24,6 +24,9 @@ import {
   ListChecks,
   Calculator,
   Cog,
+  Building2,
+  Archive,
+  TrendingDown,
 } from "lucide-react";
 
 export interface NavItem {
@@ -188,6 +191,29 @@ export const NAV_SECTIONS: NavSection[] = [
         labelKey: "manufacturing.productionOrders",
         icon: Factory,
         permission: "manufacturing.production_order.view",
+      },
+    ],
+  },
+  {
+    labelKey: "nav.fixedAssets",
+    items: [
+      {
+        path: "/fixed-assets/categories",
+        labelKey: "fixedAssets.categories",
+        icon: Building2,
+        permission: "fixed_assets.asset_category.view",
+      },
+      {
+        path: "/fixed-assets/assets",
+        labelKey: "fixedAssets.assets",
+        icon: Archive,
+        permission: "fixed_assets.fixed_asset.view",
+      },
+      {
+        path: "/fixed-assets/depreciation-runs",
+        labelKey: "fixedAssets.depreciationRuns",
+        icon: TrendingDown,
+        permission: "fixed_assets.depreciation_run.post",
       },
     ],
   },
