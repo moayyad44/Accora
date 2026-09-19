@@ -30,11 +30,14 @@ import { useAuth } from "@/features/auth/auth-context";
 const unitSchema = z.object({ code: z.string().min(1), name: z.string().min(1), nameAr: z.string().optional() });
 type UnitFormValues = z.infer<typeof unitSchema>;
 
+const ITEM_TYPES = ["TRADING", "RAW_MATERIAL", "SEMI_FINISHED", "FINISHED_GOOD", "SERVICE"] as const;
+
 const itemSchema = z.object({
   sku: z.string().min(1),
   name: z.string().min(1),
   nameAr: z.string().optional(),
   baseUnitId: z.string().min(1),
+  itemType: z.enum(ITEM_TYPES),
   barcode: z.string().optional(),
 });
 type ItemFormValues = z.infer<typeof itemSchema>;
@@ -102,7 +105,7 @@ export function ItemsPage() {
   const itemsQuery = useQuery({ queryKey: ["catalog", "items"], queryFn: catalogApi.items.list });
   const unitsQuery = useQuery({ queryKey: ["catalog", "units"], queryFn: catalogApi.units.list });
 
-  const form = useForm<ItemFormValues>({ resolver: zodResolver(itemSchema) });
+  const form = useForm<ItemFormValues>({ resolver: zodResolver(itemSchema), defaultValues: { itemType: "TRADING" } });
 
   const createMutation = useMutation({
     mutationFn: catalogApi.items.create,
@@ -122,6 +125,7 @@ export function ItemsPage() {
     { accessorKey: "sku", header: t("catalog.sku"), cell: (c) => <span className="font-mono text-xs">{c.getValue<string>()}</span> },
     { accessorKey: "name", header: t("accounting.name") },
     { id: "unit", header: t("catalog.unit"), cell: ({ row }) => unitName(row.original.baseUnitId) },
+    { id: "itemType", header: t("catalog.itemType"), cell: ({ row }) => <Badge variant="info">{t(`catalog.itemType_${row.original.itemType}`)}</Badge> },
     { id: "tracking", header: t("common.status"), cell: ({ row }) => <Badge variant="neutral">{t(`catalog.trackingType_${row.original.trackingType}`)}</Badge> },
   ];
 
@@ -193,6 +197,26 @@ export function ItemsPage() {
                         {unitsQuery.data?.map((u) => (
                           <SelectItem key={u.id} value={u.id}>
                             {u.code} — {u.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </FormField>
+              <FormField label={t("catalog.itemType")} htmlFor="item-type">
+                <Controller
+                  control={form.control}
+                  name="itemType"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="item-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ITEM_TYPES.map((it) => (
+                          <SelectItem key={it} value={it}>
+                            {t(`catalog.itemType_${it}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>

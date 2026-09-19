@@ -20,6 +20,10 @@ import {
   SlidersHorizontal,
   ClipboardCheck,
   AlarmClock,
+  Factory,
+  ListChecks,
+  Calculator,
+  Cog,
 } from "lucide-react";
 
 export interface NavItem {
@@ -155,6 +159,35 @@ export const NAV_SECTIONS: NavSection[] = [
         labelKey: "inventory.expiringBatches",
         icon: AlarmClock,
         permission: "inventory.item.view",
+      },
+    ],
+  },
+  {
+    labelKey: "nav.manufacturing",
+    items: [
+      {
+        path: "/manufacturing/work-centers",
+        labelKey: "manufacturing.workCenters",
+        icon: Cog,
+        permission: "manufacturing.work_center.view",
+      },
+      {
+        path: "/manufacturing/boms",
+        labelKey: "manufacturing.boms",
+        icon: ListChecks,
+        permission: "manufacturing.bom.view",
+      },
+      {
+        path: "/manufacturing/standard-costs",
+        labelKey: "manufacturing.standardCosts",
+        icon: Calculator,
+        permission: "manufacturing.standard_cost.view",
+      },
+      {
+        path: "/manufacturing/production-orders",
+        labelKey: "manufacturing.productionOrders",
+        icon: Factory,
+        permission: "manufacturing.production_order.view",
       },
     ],
   },

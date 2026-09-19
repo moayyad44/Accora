@@ -27,6 +27,14 @@ import { StockCountsListPage } from "@/features/inventory/StockCountsListPage";
 import { NewStockCountPage } from "@/features/inventory/NewStockCountPage";
 import { StockCountDetailPage } from "@/features/inventory/StockCountDetailPage";
 import { ExpiringBatchesPage } from "@/features/inventory/ExpiringBatchesPage";
+import { WorkCentersPage } from "@/features/manufacturing/WorkCentersPage";
+import { BomsListPage } from "@/features/manufacturing/BomsListPage";
+import { NewBomPage } from "@/features/manufacturing/NewBomPage";
+import { BomDetailPage } from "@/features/manufacturing/BomDetailPage";
+import { StandardCostsPage } from "@/features/manufacturing/StandardCostsPage";
+import { ProductionOrdersListPage } from "@/features/manufacturing/ProductionOrdersListPage";
+import { NewProductionOrderPage } from "@/features/manufacturing/NewProductionOrderPage";
+import { ProductionOrderDetailPage } from "@/features/manufacturing/ProductionOrderDetailPage";
 import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
 import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
 import { SalesInvoiceDetailPage } from "@/features/sales/SalesInvoiceDetailPage";
@@ -79,6 +87,15 @@ export function AppRouter() {
           <Route path="/inventory/stock-counts/:id" element={<StockCountDetailPage />} />
 
           <Route path="/inventory/expiring-batches" element={<ExpiringBatchesPage />} />
+
+          <Route path="/manufacturing/work-centers" element={<WorkCentersPage />} />
+          <Route path="/manufacturing/boms" element={<BomsListPage />} />
+          <Route path="/manufacturing/boms/new" element={<NewBomPage />} />
+          <Route path="/manufacturing/boms/:id" element={<BomDetailPage />} />
+          <Route path="/manufacturing/standard-costs" element={<StandardCostsPage />} />
+          <Route path="/manufacturing/production-orders" element={<ProductionOrdersListPage />} />
+          <Route path="/manufacturing/production-orders/new" element={<NewProductionOrderPage />} />
+          <Route path="/manufacturing/production-orders/:id" element={<ProductionOrderDetailPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />
