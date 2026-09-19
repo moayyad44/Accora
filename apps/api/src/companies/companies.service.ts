@@ -136,6 +136,15 @@ export class CompaniesService {
       { key: "DEFAULT_COGS", code: "5110" }, // COGS - Trading
       { key: "DEFAULT_INVENTORY_ADJUSTMENT", code: "5480" }, // Inventory Adjustments
       { key: "DEFAULT_TAX_PAYABLE", code: "2120" }, // Tax Payable
+      // Manufacturing (Phase 7) — separate inventory accounts per stage of
+      // production, resolved by an item's itemType rather than one generic
+      // "inventory" bucket, so raw materials/WIP/finished goods stay visible
+      // as distinct balances on the trial balance.
+      { key: "DEFAULT_RAW_MATERIALS_INVENTORY", code: "1141" },
+      { key: "DEFAULT_WIP_INVENTORY", code: "1142" },
+      { key: "DEFAULT_FINISHED_GOODS_INVENTORY", code: "1143" },
+      { key: "DEFAULT_DIRECT_LABOR", code: "5200" },
+      { key: "DEFAULT_MANUFACTURING_OVERHEAD", code: "5330" },
     ];
 
     for (const m of mappings) {

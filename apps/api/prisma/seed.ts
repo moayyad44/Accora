@@ -100,6 +100,7 @@ const PERMISSION_CATALOG: ModulePermissions[] = [
     resources: [
       { resource: "bom" },
       { resource: "work_center" },
+      { resource: "standard_cost" },
       { resource: "production_order" },
       { resource: "production_report", actions: READ_ONLY_ACTIONS },
     ],

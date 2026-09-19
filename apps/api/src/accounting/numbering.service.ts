@@ -46,6 +46,7 @@ export class NumberingService {
       SALES_INVOICE: "INV",
       PURCHASE_ORDER: "PO",
       PURCHASE_INVOICE: "PINV",
+      PRODUCTION_ORDER: "MO",
     };
     return known[docType] ?? docType.slice(0, 3).toUpperCase();
   }

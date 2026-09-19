@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { ItemType, Prisma } from "@prisma/client";
 
 @Injectable()
 export class AccountMappingsService {
@@ -31,5 +31,24 @@ export class AccountMappingsService {
       );
     }
     return mapping.accountId;
+  }
+
+  /** Which inventory-value account represents an item's stock, based on its
+   * itemType — raw materials, work-in-process and finished goods are kept
+   * as separate visible balances rather than one generic "inventory"
+   * bucket, so a manufacturer's trial balance actually shows where value
+   * sits in the production pipeline. Never hardcoded in the callers
+   * (Manufacturing/Sales/Purchasing): they call this, then require(). */
+  inventoryMappingKeyForItemType(itemType: ItemType): string {
+    switch (itemType) {
+      case ItemType.RAW_MATERIAL:
+        return "DEFAULT_RAW_MATERIALS_INVENTORY";
+      case ItemType.SEMI_FINISHED:
+        return "DEFAULT_WIP_INVENTORY";
+      case ItemType.FINISHED_GOOD:
+        return "DEFAULT_FINISHED_GOODS_INVENTORY";
+      default:
+        return "DEFAULT_INVENTORY"; // TRADING / SERVICE
+    }
   }
 }
