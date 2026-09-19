@@ -1,0 +1,58 @@
+// ============================================================================
+// COST ACCOUNTING: overhead allocation between cost centers, standard costs
+// for variance analysis (actual vs. standard) on production orders.
+// ============================================================================
+
+enum AllocationBasis {
+  PERCENTAGE
+  HEADCOUNT
+  ACTIVITY_HOURS
+}
+
+model CostAllocationRule {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId          String          @db.Uuid
+  company            Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name               String
+  basis              AllocationBasis @default(PERCENTAGE)
+  sourceCostCenterId String          @db.Uuid
+  sourceCostCenter   CostCenter      @relation("AllocationSource", fields: [sourceCostCenterId], references: [id])
+  targetCostCenterId String          @db.Uuid
+  targetCostCenter   CostCenter      @relation("AllocationTarget", fields: [targetCostCenterId], references: [id])
+  percentage         Decimal         @db.Decimal(5, 2)
+  isActive           Boolean         @default(true)
+
+  @@map("cost_allocation_rules")
+}
+
+model StandardCost {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId        String   @db.Uuid
+  item          Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  materialCost  Decimal  @db.Decimal(18, 4)
+  laborCost     Decimal  @db.Decimal(18, 4)
+  overheadCost  Decimal  @db.Decimal(18, 4)
+  effectiveDate DateTime @db.Date
+
+  @@unique([itemId, effectiveDate])
+  @@map("standard_costs")
+}
+
+enum CostVarianceType {
+  MATERIAL
+  LABOR
+  OVERHEAD
+}
+
+/// Actual production-order cost vs. standard cost, computed after the order
+/// completes — surfaces where a product's real cost diverged from plan.
+model CostVariance {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productionOrderId String           @db.Uuid
+  productionOrder   ProductionOrder  @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  type              CostVarianceType
+  amount            Decimal          @db.Decimal(18, 4) // actual - standard (negative = favorable)
+  notes             String?
+
+  @@map("cost_variances")
+}

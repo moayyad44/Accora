@@ -1,0 +1,16 @@
+{
+  "name": "accora",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Accora - Multi-company accounting ERP",
+  "scripts": {
+    "db:generate": "pnpm --filter @accora/api prisma:generate",
+    "db:migrate": "pnpm --filter @accora/api prisma:migrate",
+    "db:seed": "pnpm --filter @accora/api prisma:seed",
+    "db:studio": "pnpm --filter @accora/api prisma:studio"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

@@ -1,0 +1,432 @@
+// ============================================================================
+// CORE: tenancy root, identity, access control, fiscal calendar, system plumbing
+// ============================================================================
+
+enum InventoryValuationMethod {
+  FIFO
+  WEIGHTED_AVERAGE
+}
+
+enum FiscalPeriodStatus {
+  OPEN
+  CLOSED
+}
+
+/// A tenant. Every company-scoped table carries companyId and is protected
+/// by a PostgreSQL Row-Level Security policy in addition to application-level
+/// filtering (see docs/DATABASE.md).
+model Company {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  nameAr    String?
+  legalName String?
+  taxNumber String?
+  logoUrl   String?
+  country   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings            CompanySetting?
+  branches            Branch[]
+  userAccess          UserCompanyAccess[]
+  roles               Role[]
+  exchangeRates       ExchangeRate[]
+  fiscalYears         FiscalYear[]
+  documentSequences   DocumentSequence[]
+  auditLogs           AuditLog[]
+  attachments         Attachment[]
+  notifications       Notification[]
+  approvalWorkflows   ApprovalWorkflow[]
+  costCenters         CostCenter[]
+  accounts            Account[]
+  accountMappings     AccountMapping[]
+  journalEntries      JournalEntry[]
+  recurringTemplates  RecurringEntryTemplate[]
+  customers           Customer[]
+  customerGroups      CustomerGroup[]
+  suppliers           Supplier[]
+  priceLists          PriceList[]
+  quotations          Quotation[]
+  salesOrders         SalesOrder[]
+  salesInvoices       SalesInvoice[]
+  salesReturns        SalesReturn[]
+  purchaseRequests    PurchaseRequest[]
+  rfqs                RequestForQuotation[]
+  purchaseOrders      PurchaseOrder[]
+  goodsReceipts       GoodsReceipt[]
+  purchaseInvoices    PurchaseInvoice[]
+  purchaseReturns     PurchaseReturn[]
+  warehouses          Warehouse[]
+  itemCategories      ItemCategory[]
+  unitsOfMeasure      UnitOfMeasure[]
+  items               Item[]
+  stockMoves          StockMove[]
+  stockCounts         StockCount[]
+  boms                Bom[]
+  workCenters         WorkCenter[]
+  productionOrders    ProductionOrder[]
+  costAllocationRules CostAllocationRule[]
+  assetCategories     AssetCategory[]
+  fixedAssets         FixedAsset[]
+  departments         Department[]
+  positions           Position[]
+  employees           Employee[]
+  payrollRuns         PayrollRun[]
+  taxTypes            TaxType[]
+  taxGroups           TaxGroup[]
+  StockBalance        StockBalance[]
+  FifoLayer           FifoLayer[]
+
+  @@map("companies")
+}
+
+/// Global reference table — NOT tenant scoped. Companies pick a base currency
+/// and may transact in any of these; exchange rates are per-company.
+model Currency {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String  @unique // ISO 4217, e.g. JOD, USD, EUR
+  name      String
+  nameAr    String?
+  symbol    String
+  minorUnit Int     @default(2)
+
+  exchangeRates         ExchangeRate[]
+  accounts              Account[]
+  companySettingsAsBase CompanySetting[] @relation("companySettingsAsBase")
+
+  @@map("currencies")
+}
+
+model CompanySetting {
+  id                       String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId                String                   @unique @db.Uuid
+  company                  Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  baseCurrencyId           String                   @db.Uuid
+  baseCurrency             Currency                 @relation("companySettingsAsBase", fields: [baseCurrencyId], references: [id])
+  inventoryValuationMethod InventoryValuationMethod @default(WEIGHTED_AVERAGE)
+  fiscalYearStartMonth     Int                      @default(1) // 1-12
+  timezone                 String                   @default("Asia/Amman")
+  dateFormat               String                   @default("dd/MM/yyyy")
+  updatedAt                DateTime                 @updatedAt
+
+  @@map("company_settings")
+}
+
+model Branch {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @db.Uuid
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code      String
+  name      String
+  nameAr    String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  userAccess        UserCompanyBranch[]
+  documentSequences DocumentSequence[]
+  costCenters       CostCenter[]
+  journalEntries    JournalEntry[]
+  salesOrders       SalesOrder[]
+  salesInvoices     SalesInvoice[]
+  purchaseOrders    PurchaseOrder[]
+  purchaseInvoices  PurchaseInvoice[]
+  warehouses        Warehouse[]
+  employees         Employee[]
+  PurchaseRequest   PurchaseRequest[]
+
+  @@unique([companyId, code])
+  @@map("branches")
+}
+
+/// Global identity — a person may have access to multiple companies.
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  fullNameAr   String?
+  phone        String?
+  isSuperAdmin Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companyAccess       UserCompanyAccess[]
+  auditLogs           AuditLog[]
+  attachmentsUploaded Attachment[]
+  notifications       Notification[]
+  approvalActions     ApprovalAction[]
+
+  @@map("users")
+}
+
+/// A role is defined per company (cloned from standard templates, or custom).
+model Role {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String   @db.Uuid
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  nameAr      String?
+  description String?
+  isSystem    Boolean  @default(false) // seeded standard role, still editable per company
+  createdAt   DateTime @default(now())
+
+  permissions   RolePermission[]
+  userAccess    UserCompanyAccess[]
+  approvalSteps ApprovalStep[]
+
+  @@unique([companyId, name])
+  @@map("roles")
+}
+
+/// Global permission catalog: (module, resource, action). Not tenant scoped —
+/// this is the fixed vocabulary of everything the system can do.
+model Permission {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  module      String // e.g. "sales", "accounting", "hr"
+  resource    String // e.g. "invoice", "journal_entry"
+  action      String // view | create | update | delete | post | approve | print | export
+  description String?
+
+  roles     RolePermission[]
+  templates RoleTemplatePermission[]
+
+  @@unique([module, resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String     @db.Uuid
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// A user's access grant to a specific company, with one role.
+/// Branch scoping is refined via UserCompanyBranch (empty = all branches).
+model UserCompanyAccess {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String   @db.Uuid
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  roleId    String   @db.Uuid
+  role      Role     @relation(fields: [roleId], references: [id])
+  isActive  Boolean  @default(true)
+  grantedAt DateTime @default(now())
+
+  branchScope UserCompanyBranch[]
+
+  @@unique([userId, companyId])
+  @@map("user_company_access")
+}
+
+model UserCompanyBranch {
+  userCompanyAccessId String            @db.Uuid
+  userCompanyAccess   UserCompanyAccess @relation(fields: [userCompanyAccessId], references: [id], onDelete: Cascade)
+  branchId            String            @db.Uuid
+  branch              Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([userCompanyAccessId, branchId])
+  @@map("user_company_branches")
+}
+
+model FiscalYear {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @db.Uuid
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String // e.g. "FY2026"
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  isClosed  Boolean  @default(false)
+
+  periods FiscalPeriod[]
+
+  @@unique([companyId, name])
+  @@map("fiscal_years")
+}
+
+model FiscalPeriod {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fiscalYearId String             @db.Uuid
+  fiscalYear   FiscalYear         @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  name         String // e.g. "2026-01"
+  startDate    DateTime           @db.Date
+  endDate      DateTime           @db.Date
+  status       FiscalPeriodStatus @default(OPEN)
+
+  journalEntries        JournalEntry[]
+  depreciationSchedules DepreciationSchedule[]
+  payrollRuns           PayrollRun[]
+
+  @@unique([fiscalYearId, name])
+  @@map("fiscal_periods")
+}
+
+/// Per-company exchange rate history for non-base currencies.
+model ExchangeRate {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String   @db.Uuid
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  currencyId String   @db.Uuid
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  rate       Decimal  @db.Decimal(18, 6) // units of base currency per 1 unit of currency
+  asOfDate   DateTime @db.Date
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, currencyId, asOfDate])
+  @@map("exchange_rates")
+}
+
+/// Configurable numbering per company/branch/document type, e.g. INV-2026-000001.
+/// currentNumber must only be advanced under a row lock (SELECT ... FOR UPDATE)
+/// to guarantee uniqueness under concurrency.
+model DocumentSequence {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String    @db.Uuid
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId      String?   @db.Uuid
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  docType       String // SALES_INVOICE, PURCHASE_ORDER, JOURNAL_VOUCHER, ...
+  prefix        String
+  pattern       String    @default("{prefix}-{year}-{seq:6}")
+  currentNumber Int       @default(0)
+  resetPeriod   String    @default("YEARLY") // NEVER | YEARLY | MONTHLY
+  lastResetAt   DateTime?
+
+  @@unique([companyId, branchId, docType])
+  @@map("document_sequences")
+}
+
+/// Immutable trail of who changed what. Populated automatically by a global
+/// interceptor — never written to manually by module code.
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String?  @db.Uuid
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId     String?  @db.Uuid
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String // CREATE | UPDATE | DELETE | POST | APPROVE | REVERSE | LOGIN ...
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, entityType, entityId])
+  @@map("audit_logs")
+}
+
+/// Polymorphic attachment usable from any document (entityType/entityId).
+model Attachment {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String   @db.Uuid
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  entityType   String
+  entityId     String
+  fileName     String
+  storageKey   String // path/key in the storage adapter (local disk or S3-compatible)
+  mimeType     String
+  sizeBytes    Int
+  uploadedById String   @db.Uuid
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([companyId, entityType, entityId])
+  @@map("attachments")
+}
+
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @db.Uuid
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // LOW_STOCK | INVOICE_PENDING_APPROVAL | PAYMENT_DUE | ...
+  title     String
+  body      String?
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([companyId, userId, isRead])
+  @@map("notifications")
+}
+
+// --- Approval workflow ------------------------------------------------------
+
+model ApprovalWorkflow {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String  @db.Uuid
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  docType    String
+  name       String
+  conditions Json? // e.g. { "minAmount": 5000, "branchIds": [...] }
+  isActive   Boolean @default(true)
+
+  steps    ApprovalStep[]
+  requests ApprovalRequest[]
+
+  @@map("approval_workflows")
+}
+
+model ApprovalStep {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId     String           @db.Uuid
+  workflow       ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepOrder      Int
+  name           String
+  approverRoleId String?          @db.Uuid
+  approverRole   Role?            @relation(fields: [approverRoleId], references: [id])
+
+  @@unique([workflowId, stepOrder])
+  @@map("approval_steps")
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ApprovalRequest {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId  String                @db.Uuid
+  workflow    ApprovalWorkflow      @relation(fields: [workflowId], references: [id])
+  docType     String
+  docId       String
+  currentStep Int                   @default(1)
+  status      ApprovalRequestStatus @default(PENDING)
+  createdAt   DateTime              @default(now())
+
+  actions ApprovalAction[]
+
+  @@index([docType, docId])
+  @@map("approval_requests")
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+model ApprovalAction {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requestId String           @db.Uuid
+  request   ApprovalRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  stepOrder Int
+  userId    String           @db.Uuid
+  user      User             @relation(fields: [userId], references: [id])
+  decision  ApprovalDecision
+  comment   String?
+  actedAt   DateTime         @default(now())
+
+  @@map("approval_actions")
+}

@@ -1,0 +1,192 @@
+// ============================================================================
+// ACCOUNTING CORE: chart of accounts, cost centers, double-entry journal.
+// The PostingEngine (application layer) is the ONLY writer of JournalEntry /
+// JournalEntryLine. See docs/ARCHITECTURE.md section 5.
+// ============================================================================
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum NormalBalance {
+  DEBIT
+  CREDIT
+}
+
+model Account {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String        @db.Uuid
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  nameAr        String?
+  parentId      String?       @db.Uuid
+  parent        Account?      @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children      Account[]     @relation("AccountHierarchy")
+  accountType   AccountType
+  normalBalance NormalBalance
+  isHeader      Boolean       @default(false) // header accounts group children, cannot be posted to directly
+  isActive      Boolean       @default(true)
+  currencyId    String?       @db.Uuid // set only for dedicated foreign-currency accounts
+  currency      Currency?     @relation(fields: [currencyId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  lines           JournalEntryLine[]
+  accountMappings AccountMapping[]
+
+  itemCategoriesIncome      ItemCategory[]  @relation("ItemCategoryIncomeAccount")
+  itemCategoriesCogs        ItemCategory[]  @relation("ItemCategoryCogsAccount")
+  itemCategoriesInventory   ItemCategory[]  @relation("ItemCategoryInventoryAccount")
+  customersArOverride       Customer[]      @relation("CustomerArAccount")
+  suppliersApOverride       Supplier[]      @relation("SupplierApAccount")
+  assetCategoriesAsset      AssetCategory[] @relation("AssetCategoryAssetAccount")
+  assetCategoriesDepExpense AssetCategory[] @relation("AssetCategoryDepExpenseAccount")
+  assetCategoriesAccumDep   AssetCategory[] @relation("AssetCategoryAccumDepAccount")
+  taxRates                  TaxRate[]
+
+  @@unique([companyId, code])
+  @@index([companyId, parentId])
+  @@map("accounts")
+}
+
+model CostCenter {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String       @db.Uuid
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId  String?      @db.Uuid
+  branch    Branch?      @relation(fields: [branchId], references: [id])
+  code      String
+  name      String
+  nameAr    String?
+  parentId  String?      @db.Uuid
+  parent    CostCenter?  @relation("CostCenterHierarchy", fields: [parentId], references: [id])
+  children  CostCenter[] @relation("CostCenterHierarchy")
+  isActive  Boolean      @default(true)
+
+  journalLines        JournalEntryLine[]
+  allocationRulesFrom CostAllocationRule[] @relation("AllocationSource")
+  allocationRulesTo   CostAllocationRule[] @relation("AllocationTarget")
+  payrollItems        PayrollItem[]
+
+  @@unique([companyId, code])
+  @@map("cost_centers")
+}
+
+/// Company-configurable default GL accounts used by other modules so nothing
+/// is hardcoded (e.g. key = "DEFAULT_AR", "DEFAULT_COGS", "TAX_PAYABLE").
+model AccountMapping {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  key       String
+  accountId String  @db.Uuid
+  account   Account @relation(fields: [accountId], references: [id])
+
+  @@unique([companyId, key])
+  @@map("account_mappings")
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+/// A document reference is which module/business document caused this entry —
+/// enables full traceability from any GL line back to its origin.
+enum JournalSourceType {
+  MANUAL
+  SALES_INVOICE
+  SALES_RETURN
+  PURCHASE_INVOICE
+  PURCHASE_RETURN
+  RECEIPT_VOUCHER
+  PAYMENT_VOUCHER
+  BANK_TRANSFER
+  BANK_RECONCILIATION
+  OPENING_BALANCE
+  CLOSING_ENTRY
+  RECURRING_ENTRY
+  DEPRECIATION
+  PAYROLL
+  PRODUCTION_ORDER
+  INVENTORY_ADJUSTMENT
+  CURRENCY_REVALUATION
+}
+
+model JournalEntry {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String             @db.Uuid
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId     String?            @db.Uuid
+  branch       Branch?            @relation(fields: [branchId], references: [id])
+  periodId     String             @db.Uuid
+  period       FiscalPeriod       @relation(fields: [periodId], references: [id])
+  entryNumber  String // generated via DocumentSequence, e.g. JV-2026-000001
+  entryDate    DateTime           @db.Date
+  sourceType   JournalSourceType  @default(MANUAL)
+  sourceId     String? // id of the originating document (invoice, payroll run, ...)
+  description  String?
+  status       JournalEntryStatus @default(DRAFT)
+  reversalOfId String?            @db.Uuid
+  reversalOf   JournalEntry?      @relation("JournalReversal", fields: [reversalOfId], references: [id])
+  reversedBy   JournalEntry[]     @relation("JournalReversal")
+  createdById  String             @db.Uuid
+  postedById   String?            @db.Uuid
+  postedAt     DateTime?
+  createdAt    DateTime           @default(now())
+
+  lines JournalEntryLine[]
+
+  @@unique([companyId, entryNumber])
+  @@index([companyId, sourceType, sourceId])
+  @@index([companyId, periodId])
+  @@map("journal_entries")
+}
+
+enum JournalPartyType {
+  CUSTOMER
+  SUPPLIER
+  EMPLOYEE
+}
+
+model JournalEntryLine {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  journalEntryId String            @db.Uuid
+  journalEntry   JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  lineNumber     Int
+  accountId      String            @db.Uuid
+  account        Account           @relation(fields: [accountId], references: [id])
+  costCenterId   String?           @db.Uuid
+  costCenter     CostCenter?       @relation(fields: [costCenterId], references: [id])
+  partyType      JournalPartyType?
+  partyId        String? // polymorphic: Customer.id | Supplier.id | Employee.id depending on partyType
+  debit          Decimal           @default(0) @db.Decimal(18, 4)
+  credit         Decimal           @default(0) @db.Decimal(18, 4)
+  currencyId     String?           @db.Uuid
+  exchangeRate   Decimal?          @db.Decimal(18, 6)
+  description    String?
+
+  @@unique([journalEntryId, lineNumber])
+  @@index([accountId])
+  @@index([partyType, partyId])
+  @@map("journal_entry_lines")
+}
+
+model RecurringEntryTemplate {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String   @db.Uuid
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  frequency     String // MONTHLY | QUARTERLY | YEARLY
+  templateLines Json // [{ accountId, costCenterId, debit, credit, description }]
+  nextRunDate   DateTime @db.Date
+  isActive      Boolean  @default(true)
+
+  @@map("recurring_entry_templates")
+}

@@ -1,0 +1,73 @@
+// ============================================================================
+// PARTIES: customers and suppliers (accounts receivable / payable subledgers)
+// ============================================================================
+
+model CustomerGroup {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  nameAr    String?
+
+  customers Customer[]
+
+  @@unique([companyId, name])
+  @@map("customer_groups")
+}
+
+model Customer {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String         @db.Uuid
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code            String
+  name            String
+  nameAr          String?
+  groupId         String?        @db.Uuid
+  group           CustomerGroup? @relation(fields: [groupId], references: [id])
+  creditLimit     Decimal        @default(0) @db.Decimal(18, 4)
+  paymentTermDays Int            @default(0)
+  arAccountId     String?        @db.Uuid
+  arAccount       Account?       @relation("CustomerArAccount", fields: [arAccountId], references: [id]) // overrides company's DEFAULT_AR mapping when set
+  taxNumber       String?
+  phone           String?
+  email           String?
+  address         String?
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+
+  quotations    Quotation[]
+  salesOrders   SalesOrder[]
+  salesInvoices SalesInvoice[]
+  salesReturns  SalesReturn[]
+
+  @@unique([companyId, code])
+  @@map("customers")
+}
+
+model Supplier {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String   @db.Uuid
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code            String
+  name            String
+  nameAr          String?
+  paymentTermDays Int      @default(0)
+  apAccountId     String?  @db.Uuid
+  apAccount       Account? @relation("SupplierApAccount", fields: [apAccountId], references: [id]) // overrides company's DEFAULT_AP mapping when set
+  taxNumber       String?
+  phone           String?
+  email           String?
+  address         String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  purchaseRequests PurchaseRequest[]
+  rfqs             RequestForQuotation[]
+  purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
+  purchaseInvoices PurchaseInvoice[]
+  purchaseReturns  PurchaseReturn[]
+
+  @@unique([companyId, code])
+  @@map("suppliers")
+}

@@ -1,0 +1,101 @@
+// ============================================================================
+// FIXED ASSETS: categories with default GL accounts, asset register,
+// depreciation schedules (Straight-Line / Declining-Balance), lifecycle
+// transactions (disposal, transfer, revaluation, maintenance).
+// ============================================================================
+
+enum DepreciationMethod {
+  STRAIGHT_LINE
+  DECLINING_BALANCE
+}
+
+model AssetCategory {
+  id                               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId                        String             @db.Uuid
+  company                          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                             String
+  nameAr                           String?
+  defaultDepreciationMethod        DepreciationMethod @default(STRAIGHT_LINE)
+  defaultUsefulLifeMonths          Int
+  assetAccountId                   String             @db.Uuid
+  assetAccount                     Account            @relation("AssetCategoryAssetAccount", fields: [assetAccountId], references: [id])
+  depreciationExpenseAccountId     String             @db.Uuid
+  depreciationExpenseAccount       Account            @relation("AssetCategoryDepExpenseAccount", fields: [depreciationExpenseAccountId], references: [id])
+  accumulatedDepreciationAccountId String             @db.Uuid
+  accumulatedDepreciationAccount   Account            @relation("AssetCategoryAccumDepAccount", fields: [accumulatedDepreciationAccountId], references: [id])
+
+  assets FixedAsset[]
+
+  @@unique([companyId, name])
+  @@map("asset_categories")
+}
+
+enum FixedAssetStatus {
+  ACTIVE
+  DISPOSED
+  FULLY_DEPRECIATED
+}
+
+model FixedAsset {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId          String             @db.Uuid
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assetNumber        String
+  name               String
+  nameAr             String?
+  categoryId         String             @db.Uuid
+  category           AssetCategory      @relation(fields: [categoryId], references: [id])
+  purchaseDate       DateTime           @db.Date
+  usageStartDate     DateTime?          @db.Date
+  cost               Decimal            @db.Decimal(18, 4)
+  salvageValue       Decimal            @default(0) @db.Decimal(18, 4)
+  usefulLifeMonths   Int
+  depreciationMethod DepreciationMethod @default(STRAIGHT_LINE)
+  status             FixedAssetStatus   @default(ACTIVE)
+  createdAt          DateTime           @default(now())
+
+  depreciationSchedules DepreciationSchedule[]
+  transactions          AssetTransaction[]
+
+  @@unique([companyId, assetNumber])
+  @@map("fixed_assets")
+}
+
+/// One row per depreciation run per period. postedJournalEntryId links to the
+/// automatically generated depreciation journal entry (DR expense / CR
+/// accumulated depreciation) for that period.
+model DepreciationSchedule {
+  id                   String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId              String       @db.Uuid
+  asset                FixedAsset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  periodId             String       @db.Uuid
+  period               FiscalPeriod @relation(fields: [periodId], references: [id])
+  amount               Decimal      @db.Decimal(18, 4)
+  accumulated          Decimal      @db.Decimal(18, 4) // running accumulated depreciation after this entry
+  postedJournalEntryId String?      @db.Uuid
+  postedAt             DateTime?
+
+  @@unique([assetId, periodId])
+  @@map("depreciation_schedules")
+}
+
+enum AssetTransactionType {
+  DISPOSAL
+  TRANSFER
+  REVALUATION
+  MAINTENANCE
+}
+
+model AssetTransaction {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId              String               @db.Uuid
+  asset                FixedAsset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  type                 AssetTransactionType
+  transactionDate      DateTime             @db.Date
+  amount               Decimal?             @db.Decimal(18, 4)
+  notes                String?
+  postedJournalEntryId String?              @db.Uuid
+  createdAt            DateTime             @default(now())
+
+  @@map("asset_transactions")
+}

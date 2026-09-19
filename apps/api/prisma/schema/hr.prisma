@@ -1,0 +1,185 @@
+// ============================================================================
+// HR & PAYROLL: employees, contracts, attendance, leaves, loans, payroll runs.
+// Posting a PayrollRun creates a journal entry distributing salary cost across
+// employees' departments/cost centers automatically.
+// ============================================================================
+
+model Department {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String       @db.Uuid
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  nameAr    String?
+  parentId  String?      @db.Uuid
+  parent    Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children  Department[] @relation("DepartmentHierarchy")
+
+  positions Position[]
+  employees Employee[]
+
+  @@unique([companyId, name])
+  @@map("departments")
+}
+
+model Position {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String      @db.Uuid
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  departmentId String?     @db.Uuid
+  department   Department? @relation(fields: [departmentId], references: [id])
+  title        String
+  titleAr      String?
+
+  employees Employee[]
+
+  @@unique([companyId, title])
+  @@map("positions")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+model Employee {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String         @db.Uuid
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId        String?        @db.Uuid
+  branch          Branch?        @relation(fields: [branchId], references: [id])
+  departmentId    String?        @db.Uuid
+  department      Department?    @relation(fields: [departmentId], references: [id])
+  positionId      String?        @db.Uuid
+  position        Position?      @relation(fields: [positionId], references: [id])
+  employeeNumber  String
+  fullName        String
+  fullNameAr      String?
+  nationalId      String?
+  phone           String?
+  email           String?
+  hireDate        DateTime       @db.Date
+  terminationDate DateTime?      @db.Date
+  status          EmployeeStatus @default(ACTIVE)
+  createdAt       DateTime       @default(now())
+
+  contracts         Contract[]
+  attendances       Attendance[]
+  leaves            Leave[]
+  loans             Loan[]
+  payrollItems      PayrollItem[]
+  purchaseRequests  PurchaseRequest[]
+  salesInvoiceLines SalesInvoiceLine[]
+
+  @@unique([companyId, employeeNumber])
+  @@map("employees")
+}
+
+model Contract {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId String    @db.Uuid
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startDate  DateTime  @db.Date
+  endDate    DateTime? @db.Date
+  baseSalary Decimal   @db.Decimal(18, 4)
+  terms      String?
+  createdAt  DateTime  @default(now())
+
+  @@map("contracts")
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  APPROVED
+  POSTED
+}
+
+model PayrollRun {
+  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId            String           @db.Uuid
+  company              Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  periodId             String           @db.Uuid
+  period               FiscalPeriod     @relation(fields: [periodId], references: [id])
+  runDate              DateTime         @db.Date
+  status               PayrollRunStatus @default(DRAFT)
+  postedJournalEntryId String?          @db.Uuid
+  postedAt             DateTime?
+
+  items PayrollItem[]
+
+  @@unique([companyId, periodId])
+  @@map("payroll_runs")
+}
+
+enum PayrollItemType {
+  BASIC
+  ALLOWANCE
+  DEDUCTION
+  OVERTIME
+  LOAN_REPAYMENT
+}
+
+model PayrollItem {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payrollRunId String          @db.Uuid
+  payrollRun   PayrollRun      @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeId   String          @db.Uuid
+  employee     Employee        @relation(fields: [employeeId], references: [id])
+  type         PayrollItemType
+  amount       Decimal         @db.Decimal(18, 4)
+  costCenterId String?         @db.Uuid
+  costCenter   CostCenter?     @relation(fields: [costCenterId], references: [id])
+
+  @@map("payroll_items")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  ON_LEAVE
+}
+
+model Attendance {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId    String           @db.Uuid
+  employee      Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date          DateTime         @db.Date
+  checkIn       DateTime?
+  checkOut      DateTime?
+  overtimeHours Decimal          @default(0) @db.Decimal(10, 2)
+  status        AttendanceStatus @default(PRESENT)
+
+  @@unique([employeeId, date])
+  @@map("attendance")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Leave {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId String      @db.Uuid
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String
+  startDate  DateTime    @db.Date
+  endDate    DateTime    @db.Date
+  status     LeaveStatus @default(PENDING)
+
+  @@map("leaves")
+}
+
+model Loan {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId       String   @db.Uuid
+  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount           Decimal  @db.Decimal(18, 4)
+  installments     Int
+  remainingBalance Decimal  @db.Decimal(18, 4)
+  startDate        DateTime @db.Date
+
+  @@map("loans")
+}

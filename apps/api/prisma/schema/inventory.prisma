@@ -1,0 +1,328 @@
+// ============================================================================
+// INVENTORY: warehouses, items, stock movement and valuation (FIFO / Weighted
+// Average, chosen per company in CompanySetting.inventoryValuationMethod).
+// ============================================================================
+
+enum ItemType {
+  RAW_MATERIAL
+  SEMI_FINISHED
+  FINISHED_GOOD
+  TRADING
+  SERVICE
+}
+
+enum ItemTrackingType {
+  NONE
+  SERIAL
+  BATCH
+}
+
+model Warehouse {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId  String? @db.Uuid
+  branch    Branch? @relation(fields: [branchId], references: [id])
+  code      String
+  name      String
+  nameAr    String?
+  isActive  Boolean @default(true)
+
+  locations            StorageLocation[]
+  stockMoves           StockMove[]
+  stockBalances        StockBalance[]
+  fifoLayers           FifoLayer[]
+  stockCounts          StockCount[]
+  salesInvoiceLines    SalesInvoiceLine[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+  goodsReceipts        GoodsReceipt[]
+  productionOrders     ProductionOrder[]
+
+  @@unique([companyId, code])
+  @@map("warehouses")
+}
+
+model StorageLocation {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  code        String
+  name        String
+  isActive    Boolean   @default(true)
+
+  stockMoves StockMove[]
+
+  @@unique([warehouseId, code])
+  @@map("storage_locations")
+}
+
+model ItemCategory {
+  id                        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId                 String         @db.Uuid
+  company                   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                      String
+  nameAr                    String?
+  parentId                  String?        @db.Uuid
+  parent                    ItemCategory?  @relation("ItemCategoryHierarchy", fields: [parentId], references: [id])
+  children                  ItemCategory[] @relation("ItemCategoryHierarchy")
+  /// Category-level default GL accounts; falls back to company AccountMapping
+  /// (DEFAULT_INVENTORY / DEFAULT_COGS / DEFAULT_SALES) when null.
+  defaultIncomeAccountId    String?        @db.Uuid
+  defaultIncomeAccount      Account?       @relation("ItemCategoryIncomeAccount", fields: [defaultIncomeAccountId], references: [id])
+  defaultCogsAccountId      String?        @db.Uuid
+  defaultCogsAccount        Account?       @relation("ItemCategoryCogsAccount", fields: [defaultCogsAccountId], references: [id])
+  defaultInventoryAccountId String?        @db.Uuid
+  defaultInventoryAccount   Account?       @relation("ItemCategoryInventoryAccount", fields: [defaultInventoryAccountId], references: [id])
+
+  items Item[]
+
+  @@unique([companyId, name])
+  @@map("item_categories")
+}
+
+model UnitOfMeasure {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code      String
+  name      String
+  nameAr    String?
+
+  items           Item[]
+  itemConversions ItemUnitConversion[]
+  bomLines        BomLine[]
+
+  @@unique([companyId, code])
+  @@map("units_of_measure")
+}
+
+model Item {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId               String                    @db.Uuid
+  company                 Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sku                     String
+  barcode                 String?
+  name                    String
+  nameAr                  String?
+  categoryId              String?                   @db.Uuid
+  category                ItemCategory?             @relation(fields: [categoryId], references: [id])
+  baseUnitId              String                    @db.Uuid
+  baseUnit                UnitOfMeasure             @relation(fields: [baseUnitId], references: [id])
+  itemType                ItemType                  @default(TRADING)
+  trackingType            ItemTrackingType          @default(NONE)
+  minStock                Decimal                   @default(0) @db.Decimal(18, 4)
+  maxStock                Decimal?                  @db.Decimal(18, 4)
+  reorderPoint            Decimal                   @default(0) @db.Decimal(18, 4)
+  /// Overrides CompanySetting.inventoryValuationMethod for this item when set.
+  valuationMethodOverride InventoryValuationMethod?
+  isActive                Boolean                   @default(true)
+  createdAt               DateTime                  @default(now())
+
+  unitConversions      ItemUnitConversion[]
+  stockMoves           StockMove[]
+  stockBalances        StockBalance[]
+  fifoLayers           FifoLayer[]
+  batches              Batch[]
+  serialNumbers        SerialNumber[]
+  stockCountLines      StockCountLine[]
+  quotationLines       QuotationLine[]
+  salesOrderLines      SalesOrderLine[]
+  salesInvoiceLines    SalesInvoiceLine[]
+  salesReturnLines     SalesReturnLine[]
+  priceListItems       PriceListItem[]
+  purchaseRequestLines PurchaseRequestLine[]
+  rfqLines             RfqLine[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+  purchaseReturnLines  PurchaseReturnLine[]
+  outputBoms           Bom[]                 @relation("BomOutputItem")
+  componentInBomLines  BomLine[]             @relation("BomComponentItem")
+  productionOrders     ProductionOrder[]
+  materialConsumptions MaterialConsumption[]
+  productionOutputs    ProductionOutput[]
+  byProducts           ByProduct[]
+  standardCosts        StandardCost[]
+
+  @@unique([companyId, sku])
+  @@index([companyId, barcode])
+  @@map("items")
+}
+
+model ItemUnitConversion {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId           String        @db.Uuid
+  item             Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  unitId           String        @db.Uuid
+  unit             UnitOfMeasure @relation(fields: [unitId], references: [id])
+  /// How many base units one of `unit` equals, e.g. 1 CARTON = 24 PCS -> 24.
+  conversionFactor Decimal       @db.Decimal(18, 6)
+
+  @@unique([itemId, unitId])
+  @@map("item_unit_conversions")
+}
+
+enum StockMoveType {
+  IN
+  OUT
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+}
+
+enum StockMoveSourceType {
+  SALES_INVOICE
+  SALES_RETURN
+  PURCHASE_INVOICE
+  PURCHASE_RETURN
+  GOODS_RECEIPT
+  TRANSFER
+  STOCK_COUNT
+  PRODUCTION_CONSUMPTION
+  PRODUCTION_OUTPUT
+  MANUAL_ADJUSTMENT
+}
+
+/// Immutable ledger of every quantity movement. StockBalance / FifoLayer are
+/// maintained transactionally alongside inserts here, but this table is the
+/// source of truth for "item card" / movement history reports.
+model StockMove {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String              @db.Uuid
+  company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  itemId      String              @db.Uuid
+  item        Item                @relation(fields: [itemId], references: [id])
+  warehouseId String              @db.Uuid
+  warehouse   Warehouse           @relation(fields: [warehouseId], references: [id])
+  locationId  String?             @db.Uuid
+  location    StorageLocation?    @relation(fields: [locationId], references: [id])
+  batchId     String?             @db.Uuid
+  batch       Batch?              @relation(fields: [batchId], references: [id])
+  serialId    String?             @db.Uuid
+  serial      SerialNumber?       @relation(fields: [serialId], references: [id])
+  moveType    StockMoveType
+  qty         Decimal             @db.Decimal(18, 4)
+  unitCost    Decimal             @db.Decimal(18, 4)
+  sourceType  StockMoveSourceType
+  sourceId    String?
+  moveDate    DateTime            @default(now())
+
+  @@index([companyId, itemId, warehouseId])
+  @@index([companyId, sourceType, sourceId])
+  @@map("stock_moves")
+}
+
+/// Denormalized current on-hand balance per item/warehouse for fast lookups;
+/// kept consistent with StockMove inside the same DB transaction.
+model StockBalance {
+  companyId   String    @db.Uuid
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  itemId      String    @db.Uuid
+  item        Item      @relation(fields: [itemId], references: [id])
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  qtyOnHand   Decimal   @default(0) @db.Decimal(18, 4)
+  avgCost     Decimal   @default(0) @db.Decimal(18, 4) // used when valuation method = WEIGHTED_AVERAGE
+  updatedAt   DateTime  @updatedAt
+
+  @@id([itemId, warehouseId])
+  @@map("stock_balances")
+}
+
+/// FIFO costing layers, consumed oldest-first. Only used/maintained when the
+/// effective valuation method (item override or company default) is FIFO.
+model FifoLayer {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String    @db.Uuid
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  itemId            String    @db.Uuid
+  item              Item      @relation(fields: [itemId], references: [id])
+  warehouseId       String    @db.Uuid
+  warehouse         Warehouse @relation(fields: [warehouseId], references: [id])
+  receivedAt        DateTime  @default(now())
+  qtyRemaining      Decimal   @db.Decimal(18, 4)
+  unitCost          Decimal   @db.Decimal(18, 4)
+  sourceStockMoveId String    @db.Uuid
+
+  @@index([companyId, itemId, warehouseId, receivedAt])
+  @@map("fifo_layers")
+}
+
+model Batch {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId          String    @db.Uuid
+  item            Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  batchNumber     String
+  manufactureDate DateTime? @db.Date
+  expiryDate      DateTime? @db.Date
+
+  stockMoves StockMove[]
+
+  @@unique([itemId, batchNumber])
+  @@map("batches")
+}
+
+enum SerialStatus {
+  IN_STOCK
+  SOLD
+  RETURNED
+  SCRAPPED
+}
+
+model SerialNumber {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId       String       @db.Uuid
+  item         Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  serialNumber String
+  status       SerialStatus @default(IN_STOCK)
+
+  stockMoves StockMove[]
+
+  @@unique([itemId, serialNumber])
+  @@map("serial_numbers")
+}
+
+enum StockCountType {
+  PERIODIC
+  SURPRISE
+}
+
+enum StockCountStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  POSTED
+}
+
+model StockCount {
+  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId            String           @db.Uuid
+  company              Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  warehouseId          String           @db.Uuid
+  warehouse            Warehouse        @relation(fields: [warehouseId], references: [id])
+  countNumber          String
+  countDate            DateTime         @db.Date
+  type                 StockCountType   @default(PERIODIC)
+  status               StockCountStatus @default(DRAFT)
+  postedJournalEntryId String?          @db.Uuid
+
+  lines StockCountLine[]
+
+  @@unique([companyId, countNumber])
+  @@map("stock_counts")
+}
+
+model StockCountLine {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stockCountId String     @db.Uuid
+  stockCount   StockCount @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  itemId       String     @db.Uuid
+  item         Item       @relation(fields: [itemId], references: [id])
+  systemQty    Decimal    @db.Decimal(18, 4)
+  countedQty   Decimal    @db.Decimal(18, 4)
+  unitCost     Decimal    @db.Decimal(18, 4)
+
+  @@unique([stockCountId, itemId])
+  @@map("stock_count_lines")
+}

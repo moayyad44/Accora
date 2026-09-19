@@ -1,0 +1,55 @@
+// ============================================================================
+// GLOBAL TEMPLATES: not tenant-scoped. These are the starting points cloned
+// into a company's own editable rows (Account / Role) at company-creation
+// time (Phase 3). Seeded once by prisma/seed.ts.
+// ============================================================================
+
+model AccountTemplate {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String  @unique
+  description String?
+
+  lines AccountTemplateLine[]
+
+  @@map("account_templates")
+}
+
+model AccountTemplateLine {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId    String          @db.Uuid
+  template      AccountTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  nameAr        String?
+  parentCode    String?
+  accountType   AccountType
+  normalBalance NormalBalance
+  isHeader      Boolean         @default(false)
+
+  @@unique([templateId, code])
+  @@map("account_template_lines")
+}
+
+/// Standard role catalog (Super Admin, Company Admin, Accountant, Sales, ...)
+/// cloned into a new company's own Role rows, which remain independently
+/// editable per company from that point on.
+model RoleTemplate {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String  @unique
+  nameAr      String?
+  description String?
+
+  permissions RoleTemplatePermission[]
+
+  @@map("role_templates")
+}
+
+model RoleTemplatePermission {
+  roleTemplateId String       @db.Uuid
+  roleTemplate   RoleTemplate @relation(fields: [roleTemplateId], references: [id], onDelete: Cascade)
+  permissionId   String       @db.Uuid
+  permission     Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleTemplateId, permissionId])
+  @@map("role_template_permissions")
+}

@@ -1,0 +1,64 @@
+// ============================================================================
+// TAX: fully configurable per company/country — nothing hardcoded. A TaxGroup
+// (e.g. "Standard 16% Jordan GST") bundles one or more TaxRates and is what
+// gets attached to a sales/purchase line; each rate maps to its own payable
+// GL account so the tax report can be produced straight from the ledger.
+// ============================================================================
+
+model TaxType {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String // e.g. "Sales Tax", "VAT", "Withholding Tax"
+  nameAr    String?
+
+  rates TaxRate[]
+
+  @@unique([companyId, name])
+  @@map("tax_types")
+}
+
+model TaxRate {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taxTypeId        String   @db.Uuid
+  taxType          TaxType  @relation(fields: [taxTypeId], references: [id], onDelete: Cascade)
+  name             String // e.g. "16%"
+  rate             Decimal  @db.Decimal(6, 3) // percentage, e.g. 16.000
+  payableAccountId String   @db.Uuid
+  payableAccount   Account  @relation(fields: [payableAccountId], references: [id])
+  effectiveDate    DateTime @db.Date
+  isActive         Boolean  @default(true)
+
+  groupRates TaxGroupRate[]
+
+  @@map("tax_rates")
+}
+
+model TaxGroup {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  nameAr    String?
+  isActive  Boolean @default(true)
+
+  rates                TaxGroupRate[]
+  quotationLines       QuotationLine[]
+  salesOrderLines      SalesOrderLine[]
+  salesInvoiceLines    SalesInvoiceLine[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+
+  @@unique([companyId, name])
+  @@map("tax_groups")
+}
+
+model TaxGroupRate {
+  taxGroupId String   @db.Uuid
+  taxGroup   TaxGroup @relation(fields: [taxGroupId], references: [id], onDelete: Cascade)
+  taxRateId  String   @db.Uuid
+  taxRate    TaxRate  @relation(fields: [taxRateId], references: [id], onDelete: Cascade)
+
+  @@id([taxGroupId, taxRateId])
+  @@map("tax_group_rates")
+}

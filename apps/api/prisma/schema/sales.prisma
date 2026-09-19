@@ -1,0 +1,229 @@
+// ============================================================================
+// SALES: quotations -> sales orders -> invoices -> returns, plus price lists.
+// Posting a SalesInvoice creates a JournalEntry (AR/Revenue/Tax) and, for
+// stocked items, consumes inventory (COGS/Inventory) via InventoryService.
+// ============================================================================
+
+enum SalesDocStatus {
+  DRAFT
+  CONFIRMED
+  POSTED
+  CANCELLED
+}
+
+enum InvoiceKind {
+  CASH
+  CREDIT
+}
+
+model PriceList {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String  @db.Uuid
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  currencyId String  @db.Uuid
+  isActive   Boolean @default(true)
+
+  items PriceListItem[]
+
+  @@unique([companyId, name])
+  @@map("price_lists")
+}
+
+model PriceListItem {
+  priceListId String    @db.Uuid
+  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  itemId      String    @db.Uuid
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  price       Decimal   @db.Decimal(18, 4)
+
+  @@id([priceListId, itemId])
+  @@map("price_list_items")
+}
+
+model Quotation {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String         @db.Uuid
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId      String         @db.Uuid
+  customer        Customer       @relation(fields: [customerId], references: [id])
+  quotationNumber String
+  quotationDate   DateTime       @db.Date
+  expiryDate      DateTime?      @db.Date
+  status          SalesDocStatus @default(DRAFT)
+  currencyId      String         @db.Uuid
+  exchangeRate    Decimal        @default(1) @db.Decimal(18, 6)
+  subtotal        Decimal        @default(0) @db.Decimal(18, 4)
+  discountTotal   Decimal        @default(0) @db.Decimal(18, 4)
+  taxTotal        Decimal        @default(0) @db.Decimal(18, 4)
+  total           Decimal        @default(0) @db.Decimal(18, 4)
+  notes           String?
+  createdAt       DateTime       @default(now())
+
+  lines       QuotationLine[]
+  salesOrders SalesOrder[]
+
+  @@unique([companyId, quotationNumber])
+  @@map("quotations")
+}
+
+model QuotationLine {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quotationId String    @db.Uuid
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  lineNumber  Int
+  itemId      String    @db.Uuid
+  item        Item      @relation(fields: [itemId], references: [id])
+  qty         Decimal   @db.Decimal(18, 4)
+  unitPrice   Decimal   @db.Decimal(18, 4)
+  discount    Decimal   @default(0) @db.Decimal(18, 4)
+  taxGroupId  String?   @db.Uuid
+  taxGroup    TaxGroup? @relation(fields: [taxGroupId], references: [id])
+  lineTotal   Decimal   @db.Decimal(18, 4)
+
+  @@unique([quotationId, lineNumber])
+  @@map("quotation_lines")
+}
+
+model SalesOrder {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String         @db.Uuid
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId      String?        @db.Uuid
+  branch        Branch?        @relation(fields: [branchId], references: [id])
+  customerId    String         @db.Uuid
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  quotationId   String?        @db.Uuid
+  quotation     Quotation?     @relation(fields: [quotationId], references: [id])
+  orderNumber   String
+  orderDate     DateTime       @db.Date
+  status        SalesDocStatus @default(DRAFT)
+  currencyId    String         @db.Uuid
+  exchangeRate  Decimal        @default(1) @db.Decimal(18, 6)
+  subtotal      Decimal        @default(0) @db.Decimal(18, 4)
+  discountTotal Decimal        @default(0) @db.Decimal(18, 4)
+  taxTotal      Decimal        @default(0) @db.Decimal(18, 4)
+  total         Decimal        @default(0) @db.Decimal(18, 4)
+  createdAt     DateTime       @default(now())
+
+  lines    SalesOrderLine[]
+  invoices SalesInvoice[]
+
+  @@unique([companyId, orderNumber])
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  salesOrderId String     @db.Uuid
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  lineNumber   Int
+  itemId       String     @db.Uuid
+  item         Item       @relation(fields: [itemId], references: [id])
+  qty          Decimal    @db.Decimal(18, 4)
+  unitPrice    Decimal    @db.Decimal(18, 4)
+  discount     Decimal    @default(0) @db.Decimal(18, 4)
+  taxGroupId   String?    @db.Uuid
+  taxGroup     TaxGroup?  @relation(fields: [taxGroupId], references: [id])
+  lineTotal    Decimal    @db.Decimal(18, 4)
+
+  @@unique([salesOrderId, lineNumber])
+  @@map("sales_order_lines")
+}
+
+model SalesInvoice {
+  id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId            String         @db.Uuid
+  company              Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId             String?        @db.Uuid
+  branch               Branch?        @relation(fields: [branchId], references: [id])
+  customerId           String         @db.Uuid
+  customer             Customer       @relation(fields: [customerId], references: [id])
+  salesOrderId         String?        @db.Uuid
+  salesOrder           SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  invoiceNumber        String
+  invoiceDate          DateTime       @db.Date
+  dueDate              DateTime?      @db.Date
+  kind                 InvoiceKind    @default(CREDIT)
+  status               SalesDocStatus @default(DRAFT)
+  currencyId           String         @db.Uuid
+  exchangeRate         Decimal        @default(1) @db.Decimal(18, 6)
+  subtotal             Decimal        @default(0) @db.Decimal(18, 4)
+  discountTotal        Decimal        @default(0) @db.Decimal(18, 4)
+  taxTotal             Decimal        @default(0) @db.Decimal(18, 4)
+  total                Decimal        @default(0) @db.Decimal(18, 4)
+  /// Denormalized pointer to the JournalEntry this posting created — the
+  /// authoritative link is JournalEntry(sourceType=SALES_INVOICE, sourceId=this.id).
+  postedJournalEntryId String?        @db.Uuid
+  postedAt             DateTime?
+  createdAt            DateTime       @default(now())
+
+  lines   SalesInvoiceLine[]
+  returns SalesReturn[]
+
+  @@unique([companyId, invoiceNumber])
+  @@map("sales_invoices")
+}
+
+model SalesInvoiceLine {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  salesInvoiceId String       @db.Uuid
+  salesInvoice   SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  lineNumber     Int
+  itemId         String       @db.Uuid
+  item           Item         @relation(fields: [itemId], references: [id])
+  warehouseId    String?      @db.Uuid
+  warehouse      Warehouse?   @relation(fields: [warehouseId], references: [id])
+  salesRepId     String?      @db.Uuid
+  salesRep       Employee?    @relation(fields: [salesRepId], references: [id])
+  qty            Decimal      @db.Decimal(18, 4)
+  unitPrice      Decimal      @db.Decimal(18, 4)
+  discountAmount Decimal      @default(0) @db.Decimal(18, 4)
+  taxGroupId     String?      @db.Uuid
+  taxGroup       TaxGroup?    @relation(fields: [taxGroupId], references: [id])
+  taxAmount      Decimal      @default(0) @db.Decimal(18, 4)
+  lineTotal      Decimal      @db.Decimal(18, 4)
+  /// Snapshot of unit cost at time of posting, used to book COGS accurately
+  /// even if item costs change later.
+  unitCost       Decimal?     @db.Decimal(18, 4)
+
+  @@unique([salesInvoiceId, lineNumber])
+  @@map("sales_invoice_lines")
+}
+
+model SalesReturn {
+  id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId            String         @db.Uuid
+  company              Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId           String         @db.Uuid
+  customer             Customer       @relation(fields: [customerId], references: [id])
+  salesInvoiceId       String?        @db.Uuid
+  salesInvoice         SalesInvoice?  @relation(fields: [salesInvoiceId], references: [id])
+  returnNumber         String
+  returnDate           DateTime       @db.Date
+  status               SalesDocStatus @default(DRAFT)
+  reason               String?
+  total                Decimal        @default(0) @db.Decimal(18, 4)
+  postedJournalEntryId String?        @db.Uuid
+  createdAt            DateTime       @default(now())
+
+  lines SalesReturnLine[]
+
+  @@unique([companyId, returnNumber])
+  @@map("sales_returns")
+}
+
+model SalesReturnLine {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  salesReturnId String      @db.Uuid
+  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  lineNumber    Int
+  itemId        String      @db.Uuid
+  item          Item        @relation(fields: [itemId], references: [id])
+  qty           Decimal     @db.Decimal(18, 4)
+  unitPrice     Decimal     @db.Decimal(18, 4)
+  lineTotal     Decimal     @db.Decimal(18, 4)
+
+  @@unique([salesReturnId, lineNumber])
+  @@map("sales_return_lines")
+}

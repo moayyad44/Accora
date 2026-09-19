@@ -1,0 +1,262 @@
+// ============================================================================
+// PURCHASING: request -> RFQ -> purchase order -> goods receipt -> invoice ->
+// return. Landed costs (shipping/clearance/other) are captured on the invoice
+// and allocated into item cost.
+// ============================================================================
+
+enum PurchaseDocStatus {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  POSTED
+  CANCELLED
+}
+
+model PurchaseRequest {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String            @db.Uuid
+  company       Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId      String?           @db.Uuid
+  branch        Branch?           @relation(fields: [branchId], references: [id])
+  supplierId    String?           @db.Uuid
+  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
+  requestedById String?           @db.Uuid
+  requestedBy   Employee?         @relation(fields: [requestedById], references: [id])
+  requestNumber String
+  requestDate   DateTime          @db.Date
+  status        PurchaseDocStatus @default(DRAFT)
+  notes         String?
+  createdAt     DateTime          @default(now())
+
+  lines PurchaseRequestLine[]
+
+  @@unique([companyId, requestNumber])
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestLine {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseRequestId String          @db.Uuid
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  lineNumber        Int
+  itemId            String          @db.Uuid
+  item              Item            @relation(fields: [itemId], references: [id])
+  qty               Decimal         @db.Decimal(18, 4)
+  neededByDate      DateTime?       @db.Date
+
+  @@unique([purchaseRequestId, lineNumber])
+  @@map("purchase_request_lines")
+}
+
+model RequestForQuotation {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String            @db.Uuid
+  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplierId String            @db.Uuid
+  supplier   Supplier          @relation(fields: [supplierId], references: [id])
+  rfqNumber  String
+  rfqDate    DateTime          @db.Date
+  status     PurchaseDocStatus @default(DRAFT)
+  notes      String?
+
+  lines          RfqLine[]
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([companyId, rfqNumber])
+  @@map("purchase_rfqs")
+}
+
+model RfqLine {
+  id           String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rfqId        String              @db.Uuid
+  rfq          RequestForQuotation @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  lineNumber   Int
+  itemId       String              @db.Uuid
+  item         Item                @relation(fields: [itemId], references: [id])
+  qty          Decimal             @db.Decimal(18, 4)
+  quotedPrice  Decimal?            @db.Decimal(18, 4)
+  leadTimeDays Int?
+
+  @@unique([rfqId, lineNumber])
+  @@map("purchase_rfq_lines")
+}
+
+model PurchaseOrder {
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String               @db.Uuid
+  company      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId     String?              @db.Uuid
+  branch       Branch?              @relation(fields: [branchId], references: [id])
+  supplierId   String               @db.Uuid
+  supplier     Supplier             @relation(fields: [supplierId], references: [id])
+  rfqId        String?              @db.Uuid
+  rfq          RequestForQuotation? @relation(fields: [rfqId], references: [id])
+  poNumber     String
+  poDate       DateTime             @db.Date
+  expectedDate DateTime?            @db.Date
+  status       PurchaseDocStatus    @default(DRAFT)
+  currencyId   String               @db.Uuid
+  exchangeRate Decimal              @default(1) @db.Decimal(18, 6)
+  subtotal     Decimal              @default(0) @db.Decimal(18, 4)
+  taxTotal     Decimal              @default(0) @db.Decimal(18, 4)
+  total        Decimal              @default(0) @db.Decimal(18, 4)
+  createdAt    DateTime             @default(now())
+
+  lines            PurchaseOrderLine[]
+  goodsReceipts    GoodsReceipt[]
+  purchaseInvoices PurchaseInvoice[]
+
+  @@unique([companyId, poNumber])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseOrderId String        @db.Uuid
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  lineNumber      Int
+  itemId          String        @db.Uuid
+  item            Item          @relation(fields: [itemId], references: [id])
+  qty             Decimal       @db.Decimal(18, 4)
+  receivedQty     Decimal       @default(0) @db.Decimal(18, 4)
+  unitPrice       Decimal       @db.Decimal(18, 4)
+  taxGroupId      String?       @db.Uuid
+  taxGroup        TaxGroup?     @relation(fields: [taxGroupId], references: [id])
+  lineTotal       Decimal       @db.Decimal(18, 4)
+
+  goodsReceiptLines GoodsReceiptLine[]
+
+  @@unique([purchaseOrderId, lineNumber])
+  @@map("purchase_order_lines")
+}
+
+model GoodsReceipt {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String            @db.Uuid
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId        String?           @db.Uuid
+  supplierId      String            @db.Uuid
+  supplier        Supplier          @relation(fields: [supplierId], references: [id])
+  purchaseOrderId String?           @db.Uuid
+  purchaseOrder   PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id])
+  warehouseId     String            @db.Uuid
+  warehouse       Warehouse         @relation(fields: [warehouseId], references: [id])
+  receiptNumber   String
+  receiptDate     DateTime          @db.Date
+  status          PurchaseDocStatus @default(DRAFT)
+  createdAt       DateTime          @default(now())
+
+  lines GoodsReceiptLine[]
+
+  @@unique([companyId, receiptNumber])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  goodsReceiptId      String             @db.Uuid
+  goodsReceipt        GoodsReceipt       @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderLineId String?            @db.Uuid
+  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+  lineNumber          Int
+  itemId              String             @db.Uuid
+  item                Item               @relation(fields: [itemId], references: [id])
+  qty                 Decimal            @db.Decimal(18, 4)
+  unitCost            Decimal            @db.Decimal(18, 4)
+
+  @@unique([goodsReceiptId, lineNumber])
+  @@map("goods_receipt_lines")
+}
+
+model PurchaseInvoice {
+  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId            String            @db.Uuid
+  company              Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId             String?           @db.Uuid
+  branch               Branch?           @relation(fields: [branchId], references: [id])
+  supplierId           String            @db.Uuid
+  supplier             Supplier          @relation(fields: [supplierId], references: [id])
+  purchaseOrderId      String?           @db.Uuid
+  purchaseOrder        PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id])
+  invoiceNumber        String
+  invoiceDate          DateTime          @db.Date
+  dueDate              DateTime?         @db.Date
+  status               PurchaseDocStatus @default(DRAFT)
+  currencyId           String            @db.Uuid
+  exchangeRate         Decimal           @default(1) @db.Decimal(18, 6)
+  subtotal             Decimal           @default(0) @db.Decimal(18, 4)
+  discountTotal        Decimal           @default(0) @db.Decimal(18, 4)
+  taxTotal             Decimal           @default(0) @db.Decimal(18, 4)
+  /// Landed costs — allocated into item unit cost proportionally, not booked
+  /// straight to a generic expense account.
+  shippingCost         Decimal           @default(0) @db.Decimal(18, 4)
+  clearanceCost        Decimal           @default(0) @db.Decimal(18, 4)
+  otherCosts           Decimal           @default(0) @db.Decimal(18, 4)
+  total                Decimal           @default(0) @db.Decimal(18, 4)
+  postedJournalEntryId String?           @db.Uuid
+  postedAt             DateTime?
+  createdAt            DateTime          @default(now())
+
+  lines   PurchaseInvoiceLine[]
+  returns PurchaseReturn[]
+
+  @@unique([companyId, invoiceNumber])
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceLine {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseInvoiceId String          @db.Uuid
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  lineNumber        Int
+  itemId            String          @db.Uuid
+  item              Item            @relation(fields: [itemId], references: [id])
+  warehouseId       String?         @db.Uuid
+  warehouse         Warehouse?      @relation(fields: [warehouseId], references: [id])
+  qty               Decimal         @db.Decimal(18, 4)
+  unitCost          Decimal         @db.Decimal(18, 4)
+  taxGroupId        String?         @db.Uuid
+  taxGroup          TaxGroup?       @relation(fields: [taxGroupId], references: [id])
+  lineTotal         Decimal         @db.Decimal(18, 4)
+
+  @@unique([purchaseInvoiceId, lineNumber])
+  @@map("purchase_invoice_lines")
+}
+
+model PurchaseReturn {
+  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId            String            @db.Uuid
+  company              Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplierId           String            @db.Uuid
+  supplier             Supplier          @relation(fields: [supplierId], references: [id])
+  purchaseInvoiceId    String?           @db.Uuid
+  purchaseInvoice      PurchaseInvoice?  @relation(fields: [purchaseInvoiceId], references: [id])
+  returnNumber         String
+  returnDate           DateTime          @db.Date
+  status               PurchaseDocStatus @default(DRAFT)
+  reason               String?
+  total                Decimal           @default(0) @db.Decimal(18, 4)
+  postedJournalEntryId String?           @db.Uuid
+  createdAt            DateTime          @default(now())
+
+  lines PurchaseReturnLine[]
+
+  @@unique([companyId, returnNumber])
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnLine {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseReturnId String         @db.Uuid
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  lineNumber       Int
+  itemId           String         @db.Uuid
+  item             Item           @relation(fields: [itemId], references: [id])
+  qty              Decimal        @db.Decimal(18, 4)
+  unitCost         Decimal        @db.Decimal(18, 4)
+  lineTotal        Decimal        @db.Decimal(18, 4)
+
+  @@unique([purchaseReturnId, lineNumber])
+  @@map("purchase_return_lines")
+}
