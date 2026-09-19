@@ -14,6 +14,12 @@ import {
   FileStack,
   Package,
   Warehouse,
+  FolderTree,
+  ClipboardList,
+  ArrowLeftRight,
+  SlidersHorizontal,
+  ClipboardCheck,
+  AlarmClock,
 } from "lucide-react";
 
 export interface NavItem {
@@ -118,7 +124,38 @@ export const NAV_SECTIONS: NavSection[] = [
     labelKey: "nav.inventory",
     items: [
       { path: "/inventory/items", labelKey: "nav.items", icon: Package, permission: "inventory.item.view" },
+      { path: "/inventory/categories", labelKey: "inventory.categories", icon: FolderTree, permission: "inventory.item.view" },
       { path: "/inventory/warehouses", labelKey: "nav.warehouses", icon: Warehouse, permission: "inventory.warehouse.view" },
+      {
+        path: "/inventory/stock-balances",
+        labelKey: "inventory.stockBalances",
+        icon: ClipboardList,
+        permission: "inventory.item.view",
+      },
+      {
+        path: "/inventory/transfers",
+        labelKey: "inventory.transfers",
+        icon: ArrowLeftRight,
+        permission: "inventory.stock_transfer.create",
+      },
+      {
+        path: "/inventory/adjustments",
+        labelKey: "inventory.adjustments",
+        icon: SlidersHorizontal,
+        permission: "inventory.stock_adjustment.create",
+      },
+      {
+        path: "/inventory/stock-counts",
+        labelKey: "inventory.stockCounts",
+        icon: ClipboardCheck,
+        permission: "inventory.stock_count.view",
+      },
+      {
+        path: "/inventory/expiring-batches",
+        labelKey: "inventory.expiringBatches",
+        icon: AlarmClock,
+        permission: "inventory.item.view",
+      },
     ],
   },
 ];

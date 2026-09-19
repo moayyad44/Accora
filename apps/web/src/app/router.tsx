@@ -18,6 +18,15 @@ import { CustomersPage } from "@/features/parties/CustomersPage";
 import { SuppliersPage } from "@/features/parties/SuppliersPage";
 import { ItemsPage } from "@/features/inventory/ItemsPage";
 import { WarehousesPage } from "@/features/inventory/WarehousesPage";
+import { CategoriesPage } from "@/features/inventory/CategoriesPage";
+import { StockBalancesPage } from "@/features/inventory/StockBalancesPage";
+import { ItemCardPage } from "@/features/inventory/ItemCardPage";
+import { TransfersPage } from "@/features/inventory/TransfersPage";
+import { AdjustmentsPage } from "@/features/inventory/AdjustmentsPage";
+import { StockCountsListPage } from "@/features/inventory/StockCountsListPage";
+import { NewStockCountPage } from "@/features/inventory/NewStockCountPage";
+import { StockCountDetailPage } from "@/features/inventory/StockCountDetailPage";
+import { ExpiringBatchesPage } from "@/features/inventory/ExpiringBatchesPage";
 import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
 import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
 import { SalesInvoiceDetailPage } from "@/features/sales/SalesInvoiceDetailPage";
@@ -59,7 +68,17 @@ export function AppRouter() {
           <Route path="/purchasing/invoices/:id" element={<PurchaseInvoiceDetailPage />} />
 
           <Route path="/inventory/items" element={<ItemsPage />} />
+          <Route path="/inventory/categories" element={<CategoriesPage />} />
           <Route path="/inventory/warehouses" element={<WarehousesPage />} />
+          <Route path="/inventory/stock-balances" element={<StockBalancesPage />} />
+          <Route path="/inventory/items/:itemId/card" element={<ItemCardPage />} />
+          <Route path="/inventory/transfers" element={<TransfersPage />} />
+          <Route path="/inventory/adjustments" element={<AdjustmentsPage />} />
+          <Route path="/inventory/stock-counts" element={<StockCountsListPage />} />
+          <Route path="/inventory/stock-counts/new" element={<NewStockCountPage />} />
+          <Route path="/inventory/stock-counts/:id" element={<StockCountDetailPage />} />
+
+          <Route path="/inventory/expiring-batches" element={<ExpiringBatchesPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />
