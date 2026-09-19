@@ -1,5 +1,14 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard } from "lucide-react";
+import {
+  LayoutDashboard,
+  ListTree,
+  BookText,
+  Landmark,
+  CalendarRange,
+  Scale,
+  FileBarChart,
+  BookOpenCheck,
+} from "lucide-react";
 
 export interface NavItem {
   path: string;
@@ -26,5 +35,58 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     labelKey: "nav.dashboard",
     items: [{ path: "/", labelKey: "nav.dashboard", icon: LayoutDashboard }],
+  },
+  {
+    labelKey: "nav.accounting",
+    items: [
+      {
+        path: "/accounting/chart-of-accounts",
+        labelKey: "nav.chartOfAccounts",
+        icon: ListTree,
+        permission: "accounting.chart_of_accounts.view",
+      },
+      {
+        path: "/accounting/journal-entries",
+        labelKey: "nav.journalEntries",
+        icon: BookText,
+        permission: "accounting.journal_entry.view",
+      },
+      {
+        path: "/accounting/cost-centers",
+        labelKey: "nav.costCenters",
+        icon: Landmark,
+        permission: "accounting.cost_center.view",
+      },
+      {
+        path: "/accounting/fiscal-years",
+        labelKey: "accounting.fiscalYears",
+        icon: CalendarRange,
+        permission: "core.fiscal_period.view",
+      },
+      {
+        path: "/accounting/reports/trial-balance",
+        labelKey: "accounting.trialBalance",
+        icon: Scale,
+        permission: "accounting.financial_report.view",
+      },
+      {
+        path: "/accounting/reports/general-ledger",
+        labelKey: "nav.generalLedger",
+        icon: BookOpenCheck,
+        permission: "accounting.financial_report.view",
+      },
+      {
+        path: "/accounting/reports/income-statement",
+        labelKey: "accounting.incomeStatement",
+        icon: FileBarChart,
+        permission: "accounting.financial_report.view",
+      },
+      {
+        path: "/accounting/reports/balance-sheet",
+        labelKey: "accounting.balanceSheet",
+        icon: FileBarChart,
+        permission: "accounting.financial_report.view",
+      },
+    ],
   },
 ];
