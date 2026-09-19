@@ -39,6 +39,8 @@ import {
   ArrowUpFromLine,
   Repeat,
   ClipboardSignature,
+  History,
+  CalendarClock,
 } from "lucide-react";
 
 export interface NavItem {
@@ -116,6 +118,18 @@ export const NAV_SECTIONS: NavSection[] = [
         path: "/accounting/reports/balance-sheet",
         labelKey: "accounting.balanceSheet",
         icon: FileBarChart,
+        permission: "accounting.financial_report.view",
+      },
+      {
+        path: "/accounting/reports/ar-aging",
+        labelKey: "accounting.arAging",
+        icon: History,
+        permission: "accounting.financial_report.view",
+      },
+      {
+        path: "/accounting/reports/ap-aging",
+        labelKey: "accounting.apAging",
+        icon: CalendarClock,
         permission: "accounting.financial_report.view",
       },
     ],

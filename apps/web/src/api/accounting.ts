@@ -207,6 +207,70 @@ export interface BalanceSheet {
   isBalanced: boolean;
 }
 
+export const AGING_BUCKETS = ["current", "1-30", "31-60", "61-90", "90+"] as const;
+export type AgingBucket = (typeof AGING_BUCKETS)[number];
+export interface AgingBucketAmounts {
+  current: string;
+  "1-30": string;
+  "31-60": string;
+  "61-90": string;
+  "90+": string;
+}
+
+export interface ArAgingCustomerRow extends AgingBucketAmounts {
+  customerId: string;
+  code: string;
+  name: string;
+  total: string;
+}
+export interface ArAgingInvoiceRow {
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string | null;
+  total: string;
+  paid: string;
+  remaining: string;
+  daysOverdue: number;
+  bucket: AgingBucket;
+}
+export interface ArAgingReport {
+  asOfDate: string;
+  invoices: ArAgingInvoiceRow[];
+  byCustomer: ArAgingCustomerRow[];
+  grandTotal: string;
+}
+
+export interface ApAgingSupplierRow extends AgingBucketAmounts {
+  supplierId: string;
+  code: string;
+  name: string;
+  total: string;
+}
+export interface ApAgingInvoiceRow {
+  supplierId: string;
+  supplierCode: string;
+  supplierName: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string | null;
+  total: string;
+  paid: string;
+  remaining: string;
+  daysOverdue: number;
+  bucket: AgingBucket;
+}
+export interface ApAgingReport {
+  asOfDate: string;
+  invoices: ApAgingInvoiceRow[];
+  bySupplier: ApAgingSupplierRow[];
+  grandTotal: string;
+}
+
 export const accountingApi = {
   accounts: {
     list: () => api.get<Account[]>("/accounting/accounts"),
@@ -245,5 +309,7 @@ export const accountingApi = {
       api.get<IncomeStatement>(`/accounting/reports/income-statement?dateFrom=${dateFrom}&dateTo=${dateTo}`),
     balanceSheet: (asOfDate?: string) =>
       api.get<BalanceSheet>(`/accounting/reports/balance-sheet${asOfDate ? `?asOfDate=${asOfDate}` : ""}`),
+    arAging: (asOfDate?: string) => api.get<ArAgingReport>(`/accounting/reports/ar-aging${asOfDate ? `?asOfDate=${asOfDate}` : ""}`),
+    apAging: (asOfDate?: string) => api.get<ApAgingReport>(`/accounting/reports/ap-aging${asOfDate ? `?asOfDate=${asOfDate}` : ""}`),
   },
 };

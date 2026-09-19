@@ -14,6 +14,8 @@ import { TrialBalancePage } from "@/features/accounting/reports/TrialBalancePage
 import { GeneralLedgerPage } from "@/features/accounting/reports/GeneralLedgerPage";
 import { IncomeStatementPage } from "@/features/accounting/reports/IncomeStatementPage";
 import { BalanceSheetPage } from "@/features/accounting/reports/BalanceSheetPage";
+import { ArAgingPage } from "@/features/accounting/reports/ArAgingPage";
+import { ApAgingPage } from "@/features/accounting/reports/ApAgingPage";
 import { CustomersPage } from "@/features/parties/CustomersPage";
 import { SuppliersPage } from "@/features/parties/SuppliersPage";
 import { ItemsPage } from "@/features/inventory/ItemsPage";
@@ -84,6 +86,8 @@ export function AppRouter() {
           <Route path="/accounting/reports/general-ledger" element={<GeneralLedgerPage />} />
           <Route path="/accounting/reports/income-statement" element={<IncomeStatementPage />} />
           <Route path="/accounting/reports/balance-sheet" element={<BalanceSheetPage />} />
+          <Route path="/accounting/reports/ar-aging" element={<ArAgingPage />} />
+          <Route path="/accounting/reports/ap-aging" element={<ApAgingPage />} />
 
           <Route path="/sales/customers" element={<CustomersPage />} />
           <Route path="/sales/invoices" element={<SalesInvoicesListPage />} />

@@ -20,6 +20,7 @@
     "errorTitle": "Something went wrong",
     "errorGeneric": "We couldn't complete that action. Please try again, and contact support if it keeps happening.",
     "retry": "Retry",
+    "total": "Total",
     "viewAll": "View all",
     "status": "Status",
     "actions": "Actions",
@@ -252,7 +253,17 @@
     "unbalanced": "Unbalanced",
     "asOfDate": "As of date",
     "runningBalance": "Running balance",
-    "endingBalance": "Ending balance"
+    "endingBalance": "Ending balance",
+    "arAging": "AR Aging",
+    "arAgingDesc": "Outstanding sales invoice balances by how overdue they are",
+    "apAging": "AP Aging",
+    "apAgingDesc": "Outstanding purchase invoice balances by how overdue they are",
+    "bucketCurrent": "Not yet due",
+    "bucket1to30": "1-30 days",
+    "bucket31to60": "31-60 days",
+    "bucket61to90": "61-90 days",
+    "bucket90plus": "Over 90 days",
+    "grandTotal": "Grand total"
   },
   "parties": {
     "customers": "Customers",
