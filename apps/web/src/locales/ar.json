@@ -802,7 +802,11 @@
     "systemRole": "دور أساسي",
     "customRole": "دور مخصص",
     "permissionCount": "عدد الصلاحيات",
-    "viewPermissions": "عرض الصلاحيات"
+    "viewPermissions": "عرض الصلاحيات",
+    "accountMappings": "الحسابات الافتراضية",
+    "accountMappingsDesc": "الحسابات المحاسبية الافتراضية التي تُستخدم تلقائيًا عند ترحيل العمليات في مختلف الوحدات",
+    "mappingKey": "نوع العملية",
+    "mappingUpdated": "تم تحديث الحساب الافتراضي"
   },
   "approvals": {
     "workflows": "مسارات الموافقة",

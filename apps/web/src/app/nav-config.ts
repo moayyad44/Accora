@@ -46,6 +46,7 @@ import {
   Workflow,
   ListTodo,
   ScrollText,
+  Link2,
 } from "lucide-react";
 
 export interface NavItem {
@@ -302,6 +303,12 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: "/settings/users", labelKey: "nav.users", icon: UserCog, permission: "core.user.view" },
       { path: "/settings/roles", labelKey: "nav.roles", icon: ShieldCheck, permission: "core.role.view" },
+      {
+        path: "/settings/account-mappings",
+        labelKey: "settings.accountMappings",
+        icon: Link2,
+        permission: "accounting.account_mapping.view",
+      },
     ],
   },
   {

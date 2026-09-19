@@ -802,7 +802,11 @@
     "systemRole": "System role",
     "customRole": "Custom role",
     "permissionCount": "Permission count",
-    "viewPermissions": "View permissions"
+    "viewPermissions": "View permissions",
+    "accountMappings": "Default Accounts",
+    "accountMappingsDesc": "The GL accounts automatically used when posting transactions across the different modules",
+    "mappingKey": "Transaction type",
+    "mappingUpdated": "Default account updated"
   },
   "approvals": {
     "workflows": "Approval workflows",

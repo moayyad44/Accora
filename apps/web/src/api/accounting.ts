@@ -33,6 +33,14 @@ export interface Account {
   updatedAt: string;
 }
 
+export interface AccountMapping {
+  id: string;
+  companyId: string;
+  key: string;
+  accountId: string;
+  account: Account;
+}
+
 export interface CreateAccountInput {
   code: string;
   name: string;
@@ -280,6 +288,10 @@ export const accountingApi = {
   costCenters: {
     list: () => api.get<CostCenter[]>("/accounting/cost-centers"),
     create: (input: CreateCostCenterInput) => api.post<CostCenter>("/accounting/cost-centers", input),
+  },
+  accountMappings: {
+    list: () => api.get<AccountMapping[]>("/accounting/account-mappings"),
+    set: (key: string, accountId: string) => api.patch<AccountMapping>(`/accounting/account-mappings/${key}`, { accountId }),
   },
   fiscalYears: {
     list: () => api.get<FiscalYear[]>("/accounting/fiscal-years"),
