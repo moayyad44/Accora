@@ -15,6 +15,8 @@ import { PurchasingModule } from "./purchasing/purchasing.module";
 import { ManufacturingModule } from "./manufacturing/manufacturing.module";
 import { FixedAssetsModule } from "./fixed-assets/fixed-assets.module";
 import { HrModule } from "./hr/hr.module";
+import { TaxModule } from "./tax/tax.module";
+import { BankingModule } from "./banking/banking.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -35,6 +37,8 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     ManufacturingModule,
     FixedAssetsModule,
     HrModule,
+    TaxModule,
+    BankingModule,
   ],
   providers: [
     // Order matters: JwtAuthGuard runs first and populates request.user,

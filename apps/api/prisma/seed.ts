@@ -132,6 +132,17 @@ const PERMISSION_CATALOG: ModulePermissions[] = [
     defaultActions: STANDARD_ACTIONS,
     resources: [{ resource: "tax_type" }, { resource: "tax_group" }],
   },
+  {
+    module: "banking",
+    defaultActions: DOCUMENT_ACTIONS,
+    resources: [
+      { resource: "cash_bank_account" },
+      { resource: "receipt_voucher" },
+      { resource: "payment_voucher" },
+      { resource: "bank_transfer" },
+      { resource: "bank_reconciliation" },
+    ],
+  },
 ];
 
 const ROLE_TEMPLATES: { name: string; nameAr: string; description: string; modules: string[] | "*" }[] = [

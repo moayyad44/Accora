@@ -49,6 +49,9 @@ export class NumberingService {
       PRODUCTION_ORDER: "MO",
       FIXED_ASSET: "FA",
       EMPLOYEE: "EMP",
+      RECEIPT_VOUCHER: "RV",
+      PAYMENT_VOUCHER: "PV",
+      BANK_TRANSFER: "BT",
     };
     return known[docType] ?? docType.slice(0, 3).toUpperCase();
   }

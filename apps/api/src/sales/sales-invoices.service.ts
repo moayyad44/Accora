@@ -3,9 +3,10 @@ import { InvoiceKind, JournalSourceType, Prisma, SalesDocStatus, StockMoveSource
 import Decimal from "decimal.js";
 import { NumberingService } from "../accounting/numbering.service";
 import { AccountMappingsService } from "../accounting/account-mappings.service";
-import { JournalEntriesService } from "../accounting/journal-entries.service";
+import { JournalEntriesService, PostingLineInput } from "../accounting/journal-entries.service";
 import { InventoryService } from "../inventory/inventory.service";
 import { SerialTrackingService } from "../inventory/serial-tracking.service";
+import { TaxGroupsService } from "../tax/tax-groups.service";
 
 export interface SalesInvoiceLineInput {
   itemId: string;
@@ -17,6 +18,9 @@ export interface SalesInvoiceLineInput {
   /** Required when the item's trackingType is SERIAL — the specific units
    * to ship; length must equal qty. */
   serialNumbers?: string[];
+  /** Optional — when set, tax is computed from this group's active rates
+   * as of invoiceDate and locked in at draft creation (docs/TAX.md). */
+  taxGroupId?: string;
 }
 
 export interface CreateSalesInvoiceInput {
@@ -51,6 +55,7 @@ export class SalesInvoicesService {
     private readonly journalEntriesService: JournalEntriesService,
     private readonly inventoryService: InventoryService,
     private readonly serialTrackingService: SerialTrackingService,
+    private readonly taxGroupsService: TaxGroupsService,
   ) {}
 
   async create(tx: Prisma.TransactionClient, companyId: string, input: CreateSalesInvoiceInput) {
@@ -59,6 +64,7 @@ export class SalesInvoicesService {
     if (input.lines.length === 0) throw new BadRequestException("Invoice needs at least one line");
 
     let subtotal = new Decimal(0);
+    let taxTotal = new Decimal(0);
     const lineData: {
       lineNumber: number;
       itemId: string;
@@ -69,6 +75,9 @@ export class SalesInvoicesService {
       lineTotal: string;
       description?: string;
       serialNumbers: string[];
+      taxGroupId?: string;
+      taxAmount: string;
+      taxBreakdown: { taxRateId: string; amount: string }[];
     }[] = [];
 
     for (const [index, line] of input.lines.entries()) {
@@ -89,6 +98,15 @@ export class SalesInvoicesService {
       const lineTotal = qty.times(unitPrice).minus(discount);
       subtotal = subtotal.plus(lineTotal);
 
+      let lineTaxAmount = new Decimal(0);
+      let taxBreakdown: { taxRateId: string; amount: string }[] = [];
+      if (line.taxGroupId) {
+        const computed = await this.taxGroupsService.computeTax(tx, companyId, line.taxGroupId, lineTotal, input.invoiceDate);
+        lineTaxAmount = computed.totalTax;
+        taxBreakdown = computed.breakdown.map((b) => ({ taxRateId: b.taxRateId, amount: b.amount }));
+      }
+      taxTotal = taxTotal.plus(lineTaxAmount);
+
       lineData.push({
         lineNumber: index + 1,
         itemId: line.itemId,
@@ -99,11 +117,12 @@ export class SalesInvoicesService {
         lineTotal: lineTotal.toFixed(4),
         description: line.description,
         serialNumbers: line.serialNumbers ?? [],
+        taxGroupId: line.taxGroupId,
+        taxAmount: lineTaxAmount.toFixed(4),
+        taxBreakdown,
       });
     }
 
-    // Phase 5 simplification: no tax engine wiring yet (see docs/SALES_PURCHASING.md).
-    const taxTotal = new Decimal(0);
     const total = subtotal.plus(taxTotal);
 
     const invoiceNumber = await this.numberingService.next(
@@ -128,7 +147,12 @@ export class SalesInvoicesService {
         subtotal: subtotal.toFixed(4),
         taxTotal: taxTotal.toFixed(4),
         total: total.toFixed(4),
-        lines: { create: lineData },
+        lines: {
+          create: lineData.map(({ taxBreakdown, ...line }) => ({
+            ...line,
+            taxBreakdown: { create: taxBreakdown },
+          })),
+        },
       },
       include: { lines: true, customer: true },
     });
@@ -148,13 +172,27 @@ export class SalesInvoicesService {
       invoice.customer.arAccountId ?? (await this.accountMappingsService.require(tx, companyId, "DEFAULT_AR"));
     const revenueAccountId = await this.accountMappingsService.require(tx, companyId, "DEFAULT_SALES_REVENUE");
 
-    const lines = [
+    const lines: PostingLineInput[] = [
       { accountId: arAccountId, debit: invoice.total.toString() },
       { accountId: revenueAccountId, credit: invoice.subtotal.toString() },
     ];
-    if (new Decimal(invoice.taxTotal.toString()).gt(0)) {
-      const taxAccountId = await this.accountMappingsService.require(tx, companyId, "DEFAULT_TAX_PAYABLE");
-      lines.push({ accountId: taxAccountId, credit: invoice.taxTotal.toString() });
+
+    // Each tax rate applied across this invoice's lines posts to its own
+    // payable account (a TaxGroup can bundle several), never one flat
+    // "tax payable" bucket — aggregated so a rate shared by multiple lines
+    // becomes a single GL line, not one per line.
+    const lineTaxes = await tx.salesInvoiceLineTax.findMany({
+      where: { salesInvoiceLine: { salesInvoiceId: invoice.id } },
+      include: { taxRate: true },
+    });
+    const taxByAccount = new Map<string, Decimal>();
+    for (const lt of lineTaxes) {
+      const key = lt.taxRate.payableAccountId;
+      taxByAccount.set(key, (taxByAccount.get(key) ?? new Decimal(0)).plus(new Decimal(lt.amount.toString())));
+    }
+    for (const [accountId, amount] of taxByAccount) {
+      if (amount.lte(0)) continue;
+      lines.push({ accountId, credit: amount.toFixed(4) });
     }
 
     // Ship the goods (or fail the whole posting if any line oversells) and

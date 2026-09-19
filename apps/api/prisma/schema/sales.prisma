@@ -190,8 +190,25 @@ model SalesInvoiceLine {
   /// equal qty. Captured at draft time so it survives to posting.
   serialNumbers  String[]     @default([])
 
+  taxBreakdown SalesInvoiceLineTax[]
+
   @@unique([salesInvoiceId, lineNumber])
   @@map("sales_invoice_lines")
+}
+
+/// One row per tax rate actually applied to a line — a TaxGroup can bundle
+/// several rates (e.g. a national + a municipal tax) that post to
+/// different payable accounts, so the line's single taxAmount alone isn't
+/// enough to post correctly; this is what posting aggregates by account.
+model SalesInvoiceLineTax {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  salesInvoiceLineId String           @db.Uuid
+  salesInvoiceLine   SalesInvoiceLine @relation(fields: [salesInvoiceLineId], references: [id], onDelete: Cascade)
+  taxRateId          String           @db.Uuid
+  taxRate            TaxRate          @relation("SalesLineTaxRate", fields: [taxRateId], references: [id])
+  amount             Decimal          @db.Decimal(18, 4)
+
+  @@map("sales_invoice_line_taxes")
 }
 
 model SalesReturn {

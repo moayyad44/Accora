@@ -39,6 +39,10 @@ class SalesInvoiceLineDto {
   @IsArray()
   @IsString({ each: true })
   serialNumbers?: string[];
+
+  @IsOptional()
+  @IsUUID()
+  taxGroupId?: string;
 }
 
 export class CreateSalesInvoiceDto {

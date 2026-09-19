@@ -218,6 +218,7 @@ model PurchaseInvoiceLine {
   unitCost          Decimal         @db.Decimal(18, 4)
   taxGroupId        String?         @db.Uuid
   taxGroup          TaxGroup?       @relation(fields: [taxGroupId], references: [id])
+  taxAmount         Decimal         @default(0) @db.Decimal(18, 4)
   lineTotal         Decimal         @db.Decimal(18, 4)
   /// Captured at draft time for a BATCH-tracked item so it survives to
   /// posting (a separate call/transaction) — see InventoryService.receiveStock.
@@ -226,8 +227,24 @@ model PurchaseInvoiceLine {
   /// Required for a SERIAL-tracked item — length must equal qty.
   serialNumbers     String[]        @default([])
 
+  taxBreakdown PurchaseInvoiceLineTax[]
+
   @@unique([purchaseInvoiceId, lineNumber])
   @@map("purchase_invoice_lines")
+}
+
+/// One row per tax rate actually applied to a purchase line — mirrors
+/// SalesInvoiceLineTax; needed so a multi-rate TaxGroup posts each rate's
+/// input-tax amount to its own payable/recoverable account.
+model PurchaseInvoiceLineTax {
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseInvoiceLineId String              @db.Uuid
+  purchaseInvoiceLine   PurchaseInvoiceLine @relation(fields: [purchaseInvoiceLineId], references: [id], onDelete: Cascade)
+  taxRateId             String              @db.Uuid
+  taxRate               TaxRate             @relation("PurchaseLineTaxRate", fields: [taxRateId], references: [id])
+  amount                Decimal             @db.Decimal(18, 4)
+
+  @@map("purchase_invoice_line_taxes")
 }
 
 model PurchaseReturn {

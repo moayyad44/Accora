@@ -3,9 +3,10 @@ import { JournalSourceType, Prisma, PurchaseDocStatus, StockMoveSourceType } fro
 import Decimal from "decimal.js";
 import { NumberingService } from "../accounting/numbering.service";
 import { AccountMappingsService } from "../accounting/account-mappings.service";
-import { JournalEntriesService } from "../accounting/journal-entries.service";
+import { JournalEntriesService, PostingLineInput } from "../accounting/journal-entries.service";
 import { InventoryService } from "../inventory/inventory.service";
 import { SerialTrackingService } from "../inventory/serial-tracking.service";
+import { TaxGroupsService } from "../tax/tax-groups.service";
 
 export interface PurchaseInvoiceLineInput {
   itemId: string;
@@ -18,6 +19,13 @@ export interface PurchaseInvoiceLineInput {
   expiryDate?: Date;
   /** Required when the item's trackingType is SERIAL — length must equal qty. */
   serialNumbers?: string[];
+  /** Optional — when set, tax is computed from this group's active rates
+   * as of invoiceDate and locked in at draft creation. A purchase-side
+   * group would typically map its rates to a recoverable input-tax asset
+   * account rather than the payable liability a sales-side group uses —
+   * TaxRate.payableAccountId is just any account the company chooses, so
+   * both directions are the same mechanism (docs/TAX.md). */
+  taxGroupId?: string;
 }
 
 export interface CreatePurchaseInvoiceInput {
@@ -52,6 +60,7 @@ export class PurchaseInvoicesService {
     private readonly journalEntriesService: JournalEntriesService,
     private readonly inventoryService: InventoryService,
     private readonly serialTrackingService: SerialTrackingService,
+    private readonly taxGroupsService: TaxGroupsService,
   ) {}
 
   async create(tx: Prisma.TransactionClient, companyId: string, input: CreatePurchaseInvoiceInput) {
@@ -60,6 +69,7 @@ export class PurchaseInvoicesService {
     if (input.lines.length === 0) throw new BadRequestException("Invoice needs at least one line");
 
     let subtotal = new Decimal(0);
+    let taxTotal = new Decimal(0);
     const lineData: {
       lineNumber: number;
       itemId: string;
@@ -70,6 +80,9 @@ export class PurchaseInvoicesService {
       batchNumber?: string;
       expiryDate?: Date;
       serialNumbers: string[];
+      taxGroupId?: string;
+      taxAmount: string;
+      taxBreakdown: { taxRateId: string; amount: string }[];
     }[] = [];
 
     for (const [index, line] of input.lines.entries()) {
@@ -92,6 +105,15 @@ export class PurchaseInvoicesService {
       const lineTotal = qty.times(unitCost);
       subtotal = subtotal.plus(lineTotal);
 
+      let lineTaxAmount = new Decimal(0);
+      let taxBreakdown: { taxRateId: string; amount: string }[] = [];
+      if (line.taxGroupId) {
+        const computed = await this.taxGroupsService.computeTax(tx, companyId, line.taxGroupId, lineTotal, input.invoiceDate);
+        lineTaxAmount = computed.totalTax;
+        taxBreakdown = computed.breakdown.map((b) => ({ taxRateId: b.taxRateId, amount: b.amount }));
+      }
+      taxTotal = taxTotal.plus(lineTaxAmount);
+
       lineData.push({
         lineNumber: index + 1,
         itemId: line.itemId,
@@ -102,10 +124,12 @@ export class PurchaseInvoicesService {
         batchNumber: line.batchNumber,
         expiryDate: line.expiryDate,
         serialNumbers: line.serialNumbers ?? [],
+        taxGroupId: line.taxGroupId,
+        taxAmount: lineTaxAmount.toFixed(4),
+        taxBreakdown,
       });
     }
 
-    const taxTotal = new Decimal(0); // Phase 5 simplification, see docs/SALES_PURCHASING.md
     const total = subtotal.plus(taxTotal);
 
     const invoiceNumber = await this.numberingService.next(
@@ -129,7 +153,12 @@ export class PurchaseInvoicesService {
         subtotal: subtotal.toFixed(4),
         taxTotal: taxTotal.toFixed(4),
         total: total.toFixed(4),
-        lines: { create: lineData },
+        lines: {
+          create: lineData.map(({ taxBreakdown, ...line }) => ({
+            ...line,
+            taxBreakdown: { create: taxBreakdown },
+          })),
+        },
       },
       include: { lines: true, supplier: true },
     });
@@ -149,15 +178,29 @@ export class PurchaseInvoicesService {
       invoice.supplier.apAccountId ?? (await this.accountMappingsService.require(tx, companyId, "DEFAULT_AP"));
     const inventoryAccountId = await this.accountMappingsService.require(tx, companyId, "DEFAULT_INVENTORY");
 
-    // taxTotal is always 0 for now (see create() above — Phase 5 has no tax
-    // engine wiring yet), so this only ever produces the two base lines.
-    // When purchase tax is wired in, it needs its own recoverable/input-tax
-    // account (distinct from DEFAULT_TAX_PAYABLE, which is sales output
-    // tax owed to the government) — deferred rather than guessed at here.
-    const lines = [
+    const lines: PostingLineInput[] = [
       { accountId: inventoryAccountId, debit: invoice.subtotal.toString() },
       { accountId: apAccountId, credit: invoice.total.toString() },
     ];
+
+    // Each tax rate applied across this invoice's lines debits its own
+    // account (typically a recoverable input-tax asset, distinct from
+    // DEFAULT_TAX_PAYABLE which is sales-side output tax owed to the
+    // government) — aggregated the same way sales does, one GL line per
+    // account even when several lines share a rate.
+    const lineTaxes = await tx.purchaseInvoiceLineTax.findMany({
+      where: { purchaseInvoiceLine: { purchaseInvoiceId: invoice.id } },
+      include: { taxRate: true },
+    });
+    const taxByAccount = new Map<string, Decimal>();
+    for (const lt of lineTaxes) {
+      const key = lt.taxRate.payableAccountId;
+      taxByAccount.set(key, (taxByAccount.get(key) ?? new Decimal(0)).plus(new Decimal(lt.amount.toString())));
+    }
+    for (const [accountId, amount] of taxByAccount) {
+      if (amount.lte(0)) continue;
+      lines.push({ accountId, debit: amount.toFixed(4) });
+    }
 
     const entry = await this.journalEntriesService.createDraft(tx, companyId, userId, {
       entryDate: invoice.invoiceDate,

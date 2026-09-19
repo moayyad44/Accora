@@ -48,6 +48,9 @@ model Account {
   assetCategoriesDepExpense AssetCategory[] @relation("AssetCategoryDepExpenseAccount")
   assetCategoriesAccumDep   AssetCategory[] @relation("AssetCategoryAccumDepAccount")
   taxRates                  TaxRate[]
+  cashBankAccounts          CashBankAccount[] @relation("CashBankAccountGl")
+  receiptVoucherOthers      ReceiptVoucher[]  @relation("ReceiptOtherAccount")
+  paymentVoucherOthers      PaymentVoucher[]  @relation("PaymentOtherAccount")
 
   @@unique([companyId, code])
   @@index([companyId, parentId])

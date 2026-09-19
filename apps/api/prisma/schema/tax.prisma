@@ -30,6 +30,8 @@ model TaxRate {
   isActive         Boolean  @default(true)
 
   groupRates TaxGroupRate[]
+  salesLineTaxes    SalesInvoiceLineTax[]    @relation("SalesLineTaxRate")
+  purchaseLineTaxes PurchaseInvoiceLineTax[] @relation("PurchaseLineTaxRate")
 
   @@map("tax_rates")
 }

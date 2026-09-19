@@ -1,0 +1,157 @@
+// ============================================================================
+// BANKS & CASH: cash boxes and bank accounts, each linked to its own GL
+// account; receipt/payment vouchers for money in/out (optionally clearing a
+// customer's AR or a supplier's AP), transfers between accounts, and a
+// lightweight reconciliation record against a bank statement.
+// ============================================================================
+
+enum CashBankAccountType {
+  CASH
+  BANK
+}
+
+model CashBankAccount {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String              @db.Uuid
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  nameAr        String?
+  type          CashBankAccountType
+  accountId     String              @db.Uuid
+  account       Account             @relation("CashBankAccountGl", fields: [accountId], references: [id])
+  bankName      String?
+  accountNumber String?
+  iban          String?
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+
+  receiptVouchers ReceiptVoucher[]
+  paymentVouchers PaymentVoucher[]
+  transfersFrom   BankTransfer[]       @relation("TransferFrom")
+  transfersTo     BankTransfer[]       @relation("TransferTo")
+  reconciliations BankReconciliation[]
+
+  @@unique([companyId, name])
+  @@map("cash_bank_accounts")
+}
+
+enum VoucherPartyType {
+  CUSTOMER
+  SUPPLIER
+  OTHER
+}
+
+enum VoucherStatus {
+  DRAFT
+  POSTED
+}
+
+/// Money coming in. Against a CUSTOMER, it clears (reduces) that
+/// customer's AR balance; against a SUPPLIER, a refund clearing what the
+/// company is owed; OTHER covers anything else (capital injection, misc
+/// income) and requires otherAccountId to say what's on the other side.
+model ReceiptVoucher {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String           @db.Uuid
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId          String?          @db.Uuid
+  branch            Branch?          @relation(fields: [branchId], references: [id])
+  voucherNumber     String
+  voucherDate       DateTime         @db.Date
+  cashBankAccountId String           @db.Uuid
+  cashBankAccount   CashBankAccount  @relation(fields: [cashBankAccountId], references: [id])
+  partyType         VoucherPartyType
+  customerId        String?          @db.Uuid
+  customer          Customer?        @relation(fields: [customerId], references: [id])
+  supplierId        String?          @db.Uuid
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
+  otherAccountId    String?          @db.Uuid
+  otherAccount      Account?         @relation("ReceiptOtherAccount", fields: [otherAccountId], references: [id])
+  amount            Decimal          @db.Decimal(18, 4)
+  description       String?
+  status            VoucherStatus    @default(DRAFT)
+  postedJournalEntryId String?       @db.Uuid
+  postedAt          DateTime?
+  reconciledAt      DateTime?
+  createdAt         DateTime         @default(now())
+
+  @@unique([companyId, voucherNumber])
+  @@map("receipt_vouchers")
+}
+
+/// Money going out. Against a SUPPLIER, clears (reduces) that supplier's
+/// AP balance; against a CUSTOMER, a refund; OTHER covers anything else
+/// (an expense paid directly from cash/bank, owner drawings) and requires
+/// otherAccountId.
+model PaymentVoucher {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String           @db.Uuid
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId          String?          @db.Uuid
+  branch            Branch?          @relation(fields: [branchId], references: [id])
+  voucherNumber     String
+  voucherDate       DateTime         @db.Date
+  cashBankAccountId String           @db.Uuid
+  cashBankAccount   CashBankAccount  @relation(fields: [cashBankAccountId], references: [id])
+  partyType         VoucherPartyType
+  customerId        String?          @db.Uuid
+  customer          Customer?        @relation(fields: [customerId], references: [id])
+  supplierId        String?          @db.Uuid
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
+  otherAccountId    String?          @db.Uuid
+  otherAccount      Account?         @relation("PaymentOtherAccount", fields: [otherAccountId], references: [id])
+  amount            Decimal          @db.Decimal(18, 4)
+  description       String?
+  status            VoucherStatus    @default(DRAFT)
+  postedJournalEntryId String?       @db.Uuid
+  postedAt          DateTime?
+  reconciledAt      DateTime?
+  createdAt         DateTime         @default(now())
+
+  @@unique([companyId, voucherNumber])
+  @@map("payment_vouchers")
+}
+
+/// Moves money between two of the company's own cash/bank accounts — never
+/// touches AR/AP, just DR the destination's GL account / CR the source's.
+model BankTransfer {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String          @db.Uuid
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transferNumber    String
+  transferDate      DateTime        @db.Date
+  fromAccountId     String          @db.Uuid
+  fromAccount       CashBankAccount @relation("TransferFrom", fields: [fromAccountId], references: [id])
+  toAccountId       String          @db.Uuid
+  toAccount         CashBankAccount @relation("TransferTo", fields: [toAccountId], references: [id])
+  amount            Decimal         @db.Decimal(18, 4)
+  description       String?
+  status            VoucherStatus   @default(DRAFT)
+  postedJournalEntryId String?      @db.Uuid
+  postedAt          DateTime?
+  reconciledAt      DateTime?
+  createdAt         DateTime        @default(now())
+
+  @@unique([companyId, transferNumber])
+  @@map("bank_transfers")
+}
+
+/// A snapshot of one reconciliation pass against a bank/cash statement —
+/// not itself a posting; it records what the account's book balance stood
+/// at versus the statement, for audit trail. The reconciliation action
+/// itself marks the specific vouchers/transfers the user confirmed as
+/// cleared (their own reconciledAt), this row is the summary of that pass.
+model BankReconciliation {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String          @db.Uuid
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cashBankAccountId String          @db.Uuid
+  cashBankAccount   CashBankAccount @relation(fields: [cashBankAccountId], references: [id])
+  statementDate     DateTime        @db.Date
+  statementBalance  Decimal         @db.Decimal(18, 4)
+  bookBalance       Decimal         @db.Decimal(18, 4)
+  difference        Decimal         @db.Decimal(18, 4)
+  createdAt         DateTime        @default(now())
+
+  @@map("bank_reconciliations")
+}

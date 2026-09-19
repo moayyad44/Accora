@@ -37,6 +37,10 @@ class PurchaseInvoiceLineDto {
   @IsArray()
   @IsString({ each: true })
   serialNumbers?: string[];
+
+  @IsOptional()
+  @IsUUID()
+  taxGroupId?: string;
 }
 
 export class CreatePurchaseInvoiceDto {

@@ -35,10 +35,12 @@ model Customer {
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
 
-  quotations    Quotation[]
-  salesOrders   SalesOrder[]
-  salesInvoices SalesInvoice[]
-  salesReturns  SalesReturn[]
+  quotations      Quotation[]
+  salesOrders     SalesOrder[]
+  salesInvoices   SalesInvoice[]
+  salesReturns    SalesReturn[]
+  receiptVouchers ReceiptVoucher[]
+  paymentVouchers PaymentVoucher[]
 
   @@unique([companyId, code])
   @@map("customers")
@@ -67,6 +69,8 @@ model Supplier {
   goodsReceipts    GoodsReceipt[]
   purchaseInvoices PurchaseInvoice[]
   purchaseReturns  PurchaseReturn[]
+  paymentVouchers  PaymentVoucher[]
+  receiptVouchers  ReceiptVoucher[]
 
   @@unique([companyId, code])
   @@map("suppliers")

@@ -77,6 +77,11 @@ model Company {
   taxGroups           TaxGroup[]
   StockBalance        StockBalance[]
   FifoLayer           FifoLayer[]
+  cashBankAccounts    CashBankAccount[]
+  receiptVouchers     ReceiptVoucher[]
+  paymentVouchers     PaymentVoucher[]
+  bankTransfers       BankTransfer[]
+  bankReconciliations BankReconciliation[]
 
   @@map("companies")
 }
@@ -135,6 +140,8 @@ model Branch {
   warehouses        Warehouse[]
   employees         Employee[]
   PurchaseRequest   PurchaseRequest[]
+  receiptVouchers   ReceiptVoucher[]
+  paymentVouchers   PaymentVoucher[]
 
   @@unique([companyId, code])
   @@map("branches")
