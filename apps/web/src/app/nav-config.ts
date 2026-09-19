@@ -27,6 +27,11 @@ import {
   Building2,
   Archive,
   TrendingDown,
+  Network,
+  IdCard,
+  Contact,
+  CalendarDays,
+  Wallet,
 } from "lucide-react";
 
 export interface NavItem {
@@ -215,6 +220,16 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: TrendingDown,
         permission: "fixed_assets.depreciation_run.post",
       },
+    ],
+  },
+  {
+    labelKey: "nav.hr",
+    items: [
+      { path: "/hr/departments", labelKey: "hr.departments", icon: Network, permission: "hr.department.view" },
+      { path: "/hr/positions", labelKey: "hr.positions", icon: IdCard, permission: "hr.department.view" },
+      { path: "/hr/employees", labelKey: "hr.employees", icon: Contact, permission: "hr.employee.view" },
+      { path: "/hr/leaves", labelKey: "hr.leaves", icon: CalendarDays, permission: "hr.leave.view" },
+      { path: "/hr/payroll-runs", labelKey: "hr.payrollRuns", icon: Wallet, permission: "hr.payroll_run.view" },
     ],
   },
 ];

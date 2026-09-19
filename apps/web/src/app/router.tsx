@@ -40,6 +40,13 @@ import { FixedAssetsListPage } from "@/features/fixed-assets/FixedAssetsListPage
 import { NewFixedAssetPage } from "@/features/fixed-assets/NewFixedAssetPage";
 import { FixedAssetDetailPage } from "@/features/fixed-assets/FixedAssetDetailPage";
 import { DepreciationRunPage } from "@/features/fixed-assets/DepreciationRunPage";
+import { DepartmentsPage } from "@/features/hr/DepartmentsPage";
+import { PositionsPage } from "@/features/hr/PositionsPage";
+import { EmployeesListPage } from "@/features/hr/EmployeesListPage";
+import { EmployeeDetailPage } from "@/features/hr/EmployeeDetailPage";
+import { LeavesPage } from "@/features/hr/LeavesPage";
+import { PayrollRunsListPage } from "@/features/hr/PayrollRunsListPage";
+import { PayrollRunDetailPage } from "@/features/hr/PayrollRunDetailPage";
 import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
 import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
 import { SalesInvoiceDetailPage } from "@/features/sales/SalesInvoiceDetailPage";
@@ -107,6 +114,14 @@ export function AppRouter() {
           <Route path="/fixed-assets/assets/new" element={<NewFixedAssetPage />} />
           <Route path="/fixed-assets/assets/:id" element={<FixedAssetDetailPage />} />
           <Route path="/fixed-assets/depreciation-runs" element={<DepreciationRunPage />} />
+
+          <Route path="/hr/departments" element={<DepartmentsPage />} />
+          <Route path="/hr/positions" element={<PositionsPage />} />
+          <Route path="/hr/employees" element={<EmployeesListPage />} />
+          <Route path="/hr/employees/:id" element={<EmployeeDetailPage />} />
+          <Route path="/hr/leaves" element={<LeavesPage />} />
+          <Route path="/hr/payroll-runs" element={<PayrollRunsListPage />} />
+          <Route path="/hr/payroll-runs/:id" element={<PayrollRunDetailPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />
