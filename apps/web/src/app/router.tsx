@@ -57,6 +57,11 @@ import { ReceiptVouchersPage } from "@/features/banking/ReceiptVouchersPage";
 import { PaymentVouchersPage } from "@/features/banking/PaymentVouchersPage";
 import { BankTransfersPage } from "@/features/banking/BankTransfersPage";
 import { ReconciliationPage } from "@/features/banking/ReconciliationPage";
+import { ApprovalWorkflowsPage } from "@/features/approvals/ApprovalWorkflowsPage";
+import { ApprovalRequestsPage } from "@/features/approvals/ApprovalRequestsPage";
+import { UsersPage } from "@/features/settings/UsersPage";
+import { RolesPage } from "@/features/settings/RolesPage";
+import { AuditLogPage } from "@/features/audit/AuditLogPage";
 import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
 import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
 import { SalesInvoiceDetailPage } from "@/features/sales/SalesInvoiceDetailPage";
@@ -144,6 +149,14 @@ export function AppRouter() {
           <Route path="/banking/payment-vouchers" element={<PaymentVouchersPage />} />
           <Route path="/banking/transfers" element={<BankTransfersPage />} />
           <Route path="/banking/reconciliation" element={<ReconciliationPage />} />
+
+          <Route path="/approvals/workflows" element={<ApprovalWorkflowsPage />} />
+          <Route path="/approvals/requests" element={<ApprovalRequestsPage />} />
+
+          <Route path="/settings/users" element={<UsersPage />} />
+          <Route path="/settings/roles" element={<RolesPage />} />
+
+          <Route path="/audit-log" element={<AuditLogPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />

@@ -41,6 +41,11 @@ import {
   ClipboardSignature,
   History,
   CalendarClock,
+  UserCog,
+  ShieldCheck,
+  Workflow,
+  ListTodo,
+  ScrollText,
 } from "lucide-react";
 
 export interface NavItem {
@@ -284,5 +289,23 @@ export const NAV_SECTIONS: NavSection[] = [
         permission: "banking.bank_reconciliation.view",
       },
     ],
+  },
+  {
+    labelKey: "nav.approvals",
+    items: [
+      { path: "/approvals/workflows", labelKey: "approvals.workflows", icon: Workflow, permission: "core.approval_workflow.view" },
+      { path: "/approvals/requests", labelKey: "approvals.requests", icon: ListTodo, permission: "core.approval_workflow.view" },
+    ],
+  },
+  {
+    labelKey: "nav.settings",
+    items: [
+      { path: "/settings/users", labelKey: "nav.users", icon: UserCog, permission: "core.user.view" },
+      { path: "/settings/roles", labelKey: "nav.roles", icon: ShieldCheck, permission: "core.role.view" },
+    ],
+  },
+  {
+    labelKey: "nav.auditLog",
+    items: [{ path: "/audit-log", labelKey: "nav.auditLog", icon: ScrollText, permission: "core.audit_log.view" }],
   },
 ];
