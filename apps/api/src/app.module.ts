@@ -20,6 +20,7 @@ import { BankingModule } from "./banking/banking.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { AuditModule } from "./audit/audit.module";
 import { ApprovalsModule } from "./approvals/approvals.module";
+import { HealthModule } from "./health/health.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -45,6 +46,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     DashboardModule,
     AuditModule,
     ApprovalsModule,
+    HealthModule,
   ],
   providers: [
     // Order matters: JwtAuthGuard runs first and populates request.user,
