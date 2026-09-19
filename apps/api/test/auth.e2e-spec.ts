@@ -65,7 +65,11 @@ describe("Auth / Companies / Users / Roles (e2e)", () => {
     companyAToken = res.body.accessToken;
 
     const accounts = await adminDb.account.findMany({ where: { companyId: companyAId } });
-    expect(accounts.length).toBe(58); // matches DEFAULT_COA in prisma/seed.ts
+    const template = await adminDb.accountTemplate.findUniqueOrThrow({
+      where: { name: "Standard Template" },
+      include: { _count: { select: { lines: true } } },
+    });
+    expect(accounts.length).toBe(template._count.lines); // company's CoA was cloned 1:1 from the template
 
     const roles = await adminDb.role.findMany({ where: { companyId: companyAId } });
     expect(roles.length).toBe(10); // matches ROLE_TEMPLATES in prisma/seed.ts
@@ -92,7 +96,11 @@ describe("Auth / Companies / Users / Roles (e2e)", () => {
     expect(companyBId).not.toBe(companyAId);
 
     const accountsB = await adminDb.account.count({ where: { companyId: companyBId } });
-    expect(accountsB).toBe(58);
+    const template = await adminDb.accountTemplate.findUniqueOrThrow({
+      where: { name: "Standard Template" },
+      include: { _count: { select: { lines: true } } },
+    });
+    expect(accountsB).toBe(template._count.lines);
   });
 
   it("rejects registering the same admin email twice", async () => {

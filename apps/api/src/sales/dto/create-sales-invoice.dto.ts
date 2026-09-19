@@ -15,6 +15,9 @@ class SalesInvoiceLineDto {
   @IsUUID()
   itemId!: string;
 
+  @IsUUID()
+  warehouseId!: string;
+
   @IsNumberString()
   qty!: string;
 

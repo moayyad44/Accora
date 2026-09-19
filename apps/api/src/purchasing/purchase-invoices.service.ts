@@ -1,12 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { JournalSourceType, Prisma, PurchaseDocStatus } from "@prisma/client";
+import { JournalSourceType, Prisma, PurchaseDocStatus, StockMoveSourceType } from "@prisma/client";
 import Decimal from "decimal.js";
 import { NumberingService } from "../accounting/numbering.service";
 import { AccountMappingsService } from "../accounting/account-mappings.service";
 import { JournalEntriesService } from "../accounting/journal-entries.service";
+import { InventoryService } from "../inventory/inventory.service";
 
 export interface PurchaseInvoiceLineInput {
   itemId: string;
+  warehouseId: string;
   qty: string;
   unitCost: string;
   description?: string;
@@ -26,10 +28,15 @@ export interface CreatePurchaseInvoiceInput {
  *      stock for Phase 5's accounting purposes; Phase 6 adds the matching
  *      physical stock-quantity ledger on top of the same item)
  *   CR Accounts Payable (supplier override, else company DEFAULT_AP)
+ * Posting also physically receives the goods into the chosen warehouse via
+ * InventoryService.receiveStock — the invoice line's unitCost becomes that
+ * stock's cost basis (a FIFO layer, or folded into the item's weighted
+ * average), so what Sales later books as COGS traces back to what was
+ * actually paid here.
+ *
  * Landed costs (shipping/clearance/other) are captured on the schema
  * (PurchaseInvoice.shippingCost etc.) but their allocation into item unit
- * cost is a Phase 6 concern once there is an actual unit-cost ledger to
- * allocate into — not booked here yet.
+ * cost is deferred — not booked here yet.
  */
 @Injectable()
 export class PurchaseInvoicesService {
@@ -37,6 +44,7 @@ export class PurchaseInvoicesService {
     private readonly numberingService: NumberingService,
     private readonly accountMappingsService: AccountMappingsService,
     private readonly journalEntriesService: JournalEntriesService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async create(tx: Prisma.TransactionClient, companyId: string, input: CreatePurchaseInvoiceInput) {
@@ -48,6 +56,7 @@ export class PurchaseInvoicesService {
     const lineData: {
       lineNumber: number;
       itemId: string;
+      warehouseId: string;
       qty: string;
       unitCost: string;
       lineTotal: string;
@@ -56,6 +65,8 @@ export class PurchaseInvoicesService {
     for (const [index, line] of input.lines.entries()) {
       const item = await tx.item.findFirst({ where: { id: line.itemId, companyId } });
       if (!item) throw new NotFoundException(`Item ${line.itemId} not found`);
+      const warehouse = await tx.warehouse.findFirst({ where: { id: line.warehouseId, companyId } });
+      if (!warehouse) throw new NotFoundException(`Warehouse ${line.warehouseId} not found`);
 
       const qty = new Decimal(line.qty);
       const unitCost = new Decimal(line.unitCost);
@@ -66,6 +77,7 @@ export class PurchaseInvoicesService {
       lineData.push({
         lineNumber: index + 1,
         itemId: line.itemId,
+        warehouseId: line.warehouseId,
         qty: qty.toFixed(4),
         unitCost: unitCost.toFixed(4),
         lineTotal: lineTotal.toFixed(4),
@@ -135,6 +147,18 @@ export class PurchaseInvoicesService {
       lines,
     });
     const posted = await this.journalEntriesService.post(tx, companyId, userId, entry.id);
+
+    for (const line of invoice.lines) {
+      await this.inventoryService.receiveStock(tx, companyId, {
+        itemId: line.itemId,
+        warehouseId: line.warehouseId!,
+        qty: line.qty.toString(),
+        unitCost: line.unitCost.toString(),
+        sourceType: StockMoveSourceType.PURCHASE_INVOICE,
+        sourceId: invoice.id,
+        moveDate: invoice.invoiceDate,
+      });
+    }
 
     return tx.purchaseInvoice.update({
       where: { id: invoice.id },

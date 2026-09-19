@@ -9,6 +9,7 @@ import { RolesModule } from "./roles/roles.module";
 import { AccountingModule } from "./accounting/accounting.module";
 import { PartiesModule } from "./parties/parties.module";
 import { CatalogModule } from "./catalog/catalog.module";
+import { InventoryModule } from "./inventory/inventory.module";
 import { SalesModule } from "./sales/sales.module";
 import { PurchasingModule } from "./purchasing/purchasing.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
@@ -25,6 +26,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     AccountingModule,
     PartiesModule,
     CatalogModule,
+    InventoryModule,
     SalesModule,
     PurchasingModule,
   ],

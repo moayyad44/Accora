@@ -133,6 +133,8 @@ export class CompaniesService {
       { key: "DEFAULT_AP", code: "2111" }, // Trade Payables
       { key: "DEFAULT_SALES_REVENUE", code: "4100" }, // Sales Revenue
       { key: "DEFAULT_INVENTORY", code: "1144" }, // Trading Goods Inventory
+      { key: "DEFAULT_COGS", code: "5110" }, // COGS - Trading
+      { key: "DEFAULT_INVENTORY_ADJUSTMENT", code: "5480" }, // Inventory Adjustments
       { key: "DEFAULT_TAX_PAYABLE", code: "2120" }, // Tax Payable
     ];
 

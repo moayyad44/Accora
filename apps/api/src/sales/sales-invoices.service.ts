@@ -1,12 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { InvoiceKind, JournalSourceType, Prisma, SalesDocStatus } from "@prisma/client";
+import { InvoiceKind, JournalSourceType, Prisma, SalesDocStatus, StockMoveSourceType } from "@prisma/client";
 import Decimal from "decimal.js";
 import { NumberingService } from "../accounting/numbering.service";
 import { AccountMappingsService } from "../accounting/account-mappings.service";
 import { JournalEntriesService } from "../accounting/journal-entries.service";
+import { InventoryService } from "../inventory/inventory.service";
 
 export interface SalesInvoiceLineInput {
   itemId: string;
+  warehouseId: string;
   qty: string;
   unitPrice: string;
   discountAmount?: string;
@@ -23,13 +25,19 @@ export interface CreateSalesInvoiceInput {
 }
 
 /**
- * A sales invoice's GL effect (see docs/ARCHITECTURE.md §35):
- *   DR Accounts Receivable (customer override, else company DEFAULT_AR)
- *   CR Sales Revenue (company DEFAULT_SALES_REVENUE)
- * Inventory/COGS is intentionally NOT booked here yet — that requires an
- * actual stock ledger with a known unit cost, which is Phase 6. Phase 5's
- * job is the money side of invoicing; Phase 6 adds the physical side on
- * top of the same SalesInvoiceLine.itemId already captured here.
+ * A sales invoice's GL effect (see docs/ARCHITECTURE.md §35), all in one
+ * journal entry:
+ *   DR Accounts Receivable (customer override, else company DEFAULT_AR)  = total
+ *   CR Sales Revenue (company DEFAULT_SALES_REVENUE)                      = subtotal
+ *   DR Cost of Goods Sold (company DEFAULT_COGS)                          = actual cost of what shipped
+ *   CR Inventory (company DEFAULT_INVENTORY)                              = actual cost of what shipped
+ * The COGS amount is not a guess or a formula on the sale price — it's
+ * exactly what InventoryService.issueStock() reports it actually cost to
+ * fulfil this line (FIFO: the real layers consumed; weighted average: the
+ * item's current average), which is also what physically leaves the
+ * warehouse. Selling more than is on hand is rejected before either the
+ * stock or the GL is touched (issueStock throws, rolling back the whole
+ * posting transaction).
  */
 @Injectable()
 export class SalesInvoicesService {
@@ -37,6 +45,7 @@ export class SalesInvoicesService {
     private readonly numberingService: NumberingService,
     private readonly accountMappingsService: AccountMappingsService,
     private readonly journalEntriesService: JournalEntriesService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async create(tx: Prisma.TransactionClient, companyId: string, input: CreateSalesInvoiceInput) {
@@ -48,6 +57,7 @@ export class SalesInvoicesService {
     const lineData: {
       lineNumber: number;
       itemId: string;
+      warehouseId: string;
       qty: string;
       unitPrice: string;
       discountAmount: string;
@@ -58,6 +68,8 @@ export class SalesInvoicesService {
     for (const [index, line] of input.lines.entries()) {
       const item = await tx.item.findFirst({ where: { id: line.itemId, companyId } });
       if (!item) throw new NotFoundException(`Item ${line.itemId} not found`);
+      const warehouse = await tx.warehouse.findFirst({ where: { id: line.warehouseId, companyId } });
+      if (!warehouse) throw new NotFoundException(`Warehouse ${line.warehouseId} not found`);
 
       const qty = new Decimal(line.qty);
       const unitPrice = new Decimal(line.unitPrice);
@@ -69,6 +81,7 @@ export class SalesInvoicesService {
       lineData.push({
         lineNumber: index + 1,
         itemId: line.itemId,
+        warehouseId: line.warehouseId,
         qty: qty.toFixed(4),
         unitPrice: unitPrice.toFixed(4),
         discountAmount: discount.toFixed(4),
@@ -130,6 +143,29 @@ export class SalesInvoicesService {
     if (new Decimal(invoice.taxTotal.toString()).gt(0)) {
       const taxAccountId = await this.accountMappingsService.require(tx, companyId, "DEFAULT_TAX_PAYABLE");
       lines.push({ accountId: taxAccountId, credit: invoice.taxTotal.toString() });
+    }
+
+    // Ship the goods (or fail the whole posting if any line oversells) and
+    // find out what it actually cost, before touching the GL at all.
+    let totalCogs = new Decimal(0);
+    for (const line of invoice.lines) {
+      const issued = await this.inventoryService.issueStock(tx, companyId, {
+        itemId: line.itemId,
+        warehouseId: line.warehouseId!,
+        qty: line.qty.toString(),
+        sourceType: StockMoveSourceType.SALES_INVOICE,
+        sourceId: invoice.id,
+        moveDate: invoice.invoiceDate,
+      });
+      totalCogs = totalCogs.plus(issued.totalCost);
+      await tx.salesInvoiceLine.update({ where: { id: line.id }, data: { unitCost: issued.unitCost } });
+    }
+
+    if (totalCogs.gt(0)) {
+      const cogsAccountId = await this.accountMappingsService.require(tx, companyId, "DEFAULT_COGS");
+      const inventoryAccountId = await this.accountMappingsService.require(tx, companyId, "DEFAULT_INVENTORY");
+      lines.push({ accountId: cogsAccountId, debit: totalCogs.toFixed(4) });
+      lines.push({ accountId: inventoryAccountId, credit: totalCogs.toFixed(4) });
     }
 
     const entry = await this.journalEntriesService.createDraft(tx, companyId, userId, {

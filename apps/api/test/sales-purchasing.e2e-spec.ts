@@ -11,6 +11,11 @@ import { AppModule } from "../src/app.module";
  * correct, balanced journal entry automatically (the Phase 5 roadmap DoD
  * in docs/ARCHITECTURE.md: "فاتورة مبيعات/شراء تُرحّل وتُنشئ قيدًا صحيحًا
  * تلقائيًا"), all through real HTTP requests against real PostgreSQL.
+ *
+ * Since Phase 6, posting a sales invoice also actually reduces warehouse
+ * stock and books COGS (see inventory.e2e-spec.ts for the dedicated FIFO /
+ * weighted-average / overselling tests) — so this file purchases stock
+ * first, then sells it, exactly like a real user would have to.
  */
 describe("Sales & Purchasing (e2e)", () => {
   let app: INestApplication;
@@ -24,6 +29,7 @@ describe("Sales & Purchasing (e2e)", () => {
   let companyId: string;
   let unitId: string;
   let itemId: string;
+  let warehouseId: string;
   let customerId: string;
   let supplierId: string;
 
@@ -69,6 +75,13 @@ describe("Sales & Purchasing (e2e)", () => {
       .expect(201);
     itemId = item.body.id;
 
+    const warehouse = await request(app.getHttpServer())
+      .post("/inventory/warehouses")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ code: "MAIN", name: "Main Warehouse" })
+      .expect(201);
+    warehouseId = warehouse.body.id;
+
     const customer = await request(app.getHttpServer())
       .post("/customers")
       .set("Authorization", `Bearer ${token}`)
@@ -96,18 +109,59 @@ describe("Sales & Purchasing (e2e)", () => {
       .expect(200);
     const keys = res.body.map((m: any) => m.key);
     expect(keys).toEqual(
-      expect.arrayContaining(["DEFAULT_AR", "DEFAULT_AP", "DEFAULT_SALES_REVENUE", "DEFAULT_INVENTORY", "DEFAULT_TAX_PAYABLE"]),
+      expect.arrayContaining([
+        "DEFAULT_AR",
+        "DEFAULT_AP",
+        "DEFAULT_SALES_REVENUE",
+        "DEFAULT_INVENTORY",
+        "DEFAULT_COGS",
+        "DEFAULT_INVENTORY_ADJUSTMENT",
+        "DEFAULT_TAX_PAYABLE",
+      ]),
     );
   });
 
-  it("creates and posts a sales invoice, generating a correct balanced journal entry", async () => {
+  it("creates and posts a purchase invoice: correct GL entry, and stock physically received", async () => {
+    const draft = await request(app.getHttpServer())
+      .post("/purchasing/invoices")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        supplierId,
+        invoiceDate: today,
+        lines: [{ itemId, warehouseId, qty: "20", unitCost: "60.00" }],
+      })
+      .expect(201);
+    expect(draft.body.invoiceNumber).toMatch(/^PINV-/);
+
+    const posted = await request(app.getHttpServer())
+      .post(`/purchasing/invoices/${draft.body.id}/post`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(201);
+    expect(posted.body.status).toBe("POSTED");
+
+    const je = await adminDb.journalEntry.findUniqueOrThrow({
+      where: { id: posted.body.postedJournalEntryId },
+      include: { lines: { include: { account: true } } },
+    });
+    const inventoryLine = je.lines.find((l) => l.account.code === "1144");
+    const apLine = je.lines.find((l) => l.account.code === "2111");
+    expect(inventoryLine?.debit.toFixed(4)).toBe("1200.0000"); // 20 x 60
+    expect(apLine?.credit.toFixed(4)).toBe("1200.0000");
+
+    const balance = await adminDb.stockBalance.findUniqueOrThrow({
+      where: { itemId_warehouseId: { itemId, warehouseId } },
+    });
+    expect(balance.qtyOnHand.toFixed(4)).toBe("20.0000");
+  });
+
+  it("creates and posts a sales invoice: correct GL (AR/Revenue/COGS/Inventory), stock actually reduced", async () => {
     const draft = await request(app.getHttpServer())
       .post("/sales/invoices")
       .set("Authorization", `Bearer ${token}`)
       .send({
         customerId,
         invoiceDate: today,
-        lines: [{ itemId, qty: "3", unitPrice: "150.00", discountAmount: "0" }],
+        lines: [{ itemId, warehouseId, qty: "3", unitPrice: "150.00", discountAmount: "0" }],
       })
       .expect(201);
     expect(draft.body.status).toBe("DRAFT");
@@ -133,8 +187,19 @@ describe("Sales & Purchasing (e2e)", () => {
     expect(je.sourceId).toBe(draft.body.id);
     const arLine = je.lines.find((l) => l.account.code === "1131");
     const revenueLine = je.lines.find((l) => l.account.code === "4100");
+    const cogsLine = je.lines.find((l) => l.account.code === "5110");
+    const inventoryLine = je.lines.find((l) => l.account.code === "1144");
     expect(arLine?.debit.toFixed(4)).toBe("450.0000");
     expect(revenueLine?.credit.toFixed(4)).toBe("450.0000");
+    // Cost basis was 60/unit from the purchase above -> 3 x 60 = 180 COGS,
+    // independent of the 150/unit sale price.
+    expect(cogsLine?.debit.toFixed(4)).toBe("180.0000");
+    expect(inventoryLine?.credit.toFixed(4)).toBe("180.0000");
+
+    const balance = await adminDb.stockBalance.findUniqueOrThrow({
+      where: { itemId_warehouseId: { itemId, warehouseId } },
+    });
+    expect(balance.qtyOnHand.toFixed(4)).toBe("17.0000"); // 20 - 3
 
     const tb = await request(app.getHttpServer())
       .get("/accounting/reports/trial-balance")
@@ -149,7 +214,7 @@ describe("Sales & Purchasing (e2e)", () => {
     const draft = await request(app.getHttpServer())
       .post("/sales/invoices")
       .set("Authorization", `Bearer ${token}`)
-      .send({ customerId, invoiceDate: today, lines: [{ itemId, qty: "1", unitPrice: "10" }] })
+      .send({ customerId, invoiceDate: today, lines: [{ itemId, warehouseId, qty: "1", unitPrice: "10" }] })
       .expect(201);
     await request(app.getHttpServer())
       .post(`/sales/invoices/${draft.body.id}/post`)
@@ -160,34 +225,6 @@ describe("Sales & Purchasing (e2e)", () => {
       .set("Authorization", `Bearer ${token}`)
       .expect(400);
     expect(res.body.message).toMatch(/already posted/i);
-  });
-
-  it("creates and posts a purchase invoice, generating a correct balanced journal entry (DR Inventory / CR AP)", async () => {
-    const draft = await request(app.getHttpServer())
-      .post("/purchasing/invoices")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        supplierId,
-        invoiceDate: today,
-        lines: [{ itemId, qty: "10", unitCost: "60.00" }],
-      })
-      .expect(201);
-    expect(draft.body.invoiceNumber).toMatch(/^PINV-/);
-
-    const posted = await request(app.getHttpServer())
-      .post(`/purchasing/invoices/${draft.body.id}/post`)
-      .set("Authorization", `Bearer ${token}`)
-      .expect(201);
-    expect(posted.body.status).toBe("POSTED");
-
-    const je = await adminDb.journalEntry.findUniqueOrThrow({
-      where: { id: posted.body.postedJournalEntryId },
-      include: { lines: { include: { account: true } } },
-    });
-    const inventoryLine = je.lines.find((l) => l.account.code === "1144");
-    const apLine = je.lines.find((l) => l.account.code === "2111");
-    expect(inventoryLine?.debit.toFixed(4)).toBe("600.0000");
-    expect(apLine?.credit.toFixed(4)).toBe("600.0000");
   });
 
   it("uses a customer's overridden AR account instead of the company default when set", async () => {
@@ -206,7 +243,11 @@ describe("Sales & Purchasing (e2e)", () => {
     const draft = await request(app.getHttpServer())
       .post("/sales/invoices")
       .set("Authorization", `Bearer ${token}`)
-      .send({ customerId: custWithOverride.body.id, invoiceDate: today, lines: [{ itemId, qty: "1", unitPrice: "100" }] })
+      .send({
+        customerId: custWithOverride.body.id,
+        invoiceDate: today,
+        lines: [{ itemId, warehouseId, qty: "1", unitPrice: "100" }],
+      })
       .expect(201);
     const posted = await request(app.getHttpServer())
       .post(`/sales/invoices/${draft.body.id}/post`)
@@ -239,7 +280,7 @@ describe("Sales & Purchasing (e2e)", () => {
     await request(app.getHttpServer())
       .post("/sales/invoices")
       .set("Authorization", `Bearer ${login.body.accessToken}`)
-      .send({ customerId, invoiceDate: today, lines: [{ itemId, qty: "1", unitPrice: "10" }] })
+      .send({ customerId, invoiceDate: today, lines: [{ itemId, warehouseId, qty: "1", unitPrice: "10" }] })
       .expect(403);
   });
 });
