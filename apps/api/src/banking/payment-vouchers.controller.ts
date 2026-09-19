@@ -45,6 +45,7 @@ export class PaymentVouchersController {
         customerId: dto.customerId,
         supplierId: dto.supplierId,
         otherAccountId: dto.otherAccountId,
+        purchaseInvoiceId: dto.purchaseInvoiceId,
         amount: dto.amount,
         description: dto.description,
       }),

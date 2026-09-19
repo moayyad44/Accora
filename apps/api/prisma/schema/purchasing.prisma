@@ -198,8 +198,9 @@ model PurchaseInvoice {
   postedAt             DateTime?
   createdAt            DateTime          @default(now())
 
-  lines   PurchaseInvoiceLine[]
-  returns PurchaseReturn[]
+  lines           PurchaseInvoiceLine[]
+  returns         PurchaseReturn[]
+  paymentVouchers PaymentVoucher[]
 
   @@unique([companyId, invoiceNumber])
   @@map("purchase_invoices")

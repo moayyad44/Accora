@@ -14,6 +14,10 @@ export interface CreatePaymentVoucherInput {
   customerId?: string;
   supplierId?: string;
   otherAccountId?: string;
+  /** Optional — which purchase invoice this payment is against (SUPPLIER
+   * only). Purely a tracking link for AP aging; never changes the GL
+   * posting, which always debits the supplier's AP account in aggregate. */
+  purchaseInvoiceId?: string;
   amount: string;
   description?: string;
 }
@@ -62,13 +66,21 @@ export class PaymentVouchersService {
       if (!input.supplierId) throw new BadRequestException("supplierId is required when partyType is SUPPLIER");
       const supplier = await tx.supplier.findFirst({ where: { id: input.supplierId, companyId } });
       if (!supplier) throw new NotFoundException("Supplier not found");
+      if (input.purchaseInvoiceId) {
+        const invoice = await tx.purchaseInvoice.findFirst({
+          where: { id: input.purchaseInvoiceId, companyId, supplierId: input.supplierId },
+        });
+        if (!invoice) throw new NotFoundException("Purchase invoice not found for this supplier");
+      }
     } else if (input.partyType === VoucherPartyType.CUSTOMER) {
       if (!input.customerId) throw new BadRequestException("customerId is required when partyType is CUSTOMER");
       const customer = await tx.customer.findFirst({ where: { id: input.customerId, companyId } });
       if (!customer) throw new NotFoundException("Customer not found");
+      if (input.purchaseInvoiceId) throw new BadRequestException("purchaseInvoiceId is only valid when partyType is SUPPLIER");
     } else {
       if (!input.otherAccountId) throw new BadRequestException("otherAccountId is required when partyType is OTHER");
       await this.accountsService.requirePostable(tx, companyId, input.otherAccountId);
+      if (input.purchaseInvoiceId) throw new BadRequestException("purchaseInvoiceId is only valid when partyType is SUPPLIER");
     }
 
     const voucherNumber = await this.numberingService.next(
@@ -90,6 +102,7 @@ export class PaymentVouchersService {
         customerId: input.partyType === VoucherPartyType.CUSTOMER ? input.customerId : undefined,
         supplierId: input.partyType === VoucherPartyType.SUPPLIER ? input.supplierId : undefined,
         otherAccountId: input.partyType === VoucherPartyType.OTHER ? input.otherAccountId : undefined,
+        purchaseInvoiceId: input.partyType === VoucherPartyType.SUPPLIER ? input.purchaseInvoiceId : undefined,
         amount: amount.toFixed(4),
         description: input.description,
         status: VoucherStatus.DRAFT,

@@ -67,6 +67,12 @@ model ReceiptVoucher {
   supplier          Supplier?        @relation(fields: [supplierId], references: [id])
   otherAccountId    String?          @db.Uuid
   otherAccount      Account?         @relation("ReceiptOtherAccount", fields: [otherAccountId], references: [id])
+  /// Optional — which specific sales invoice this receipt is against
+  /// (only meaningful when partyType = CUSTOMER). Purely a tracking link
+  /// for AR aging: the GL posting always credits the customer's AR
+  /// account in aggregate regardless, never a specific invoice.
+  salesInvoiceId    String?          @db.Uuid
+  salesInvoice      SalesInvoice?    @relation(fields: [salesInvoiceId], references: [id])
   amount            Decimal          @db.Decimal(18, 4)
   description       String?
   status            VoucherStatus    @default(DRAFT)
@@ -100,6 +106,12 @@ model PaymentVoucher {
   supplier          Supplier?        @relation(fields: [supplierId], references: [id])
   otherAccountId    String?          @db.Uuid
   otherAccount      Account?         @relation("PaymentOtherAccount", fields: [otherAccountId], references: [id])
+  /// Optional — which specific purchase invoice this payment is against
+  /// (only meaningful when partyType = SUPPLIER). Purely a tracking link
+  /// for AP aging; the GL posting always debits the supplier's AP
+  /// account in aggregate regardless, never a specific invoice.
+  purchaseInvoiceId String?          @db.Uuid
+  purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
   amount            Decimal          @db.Decimal(18, 4)
   description       String?
   status            VoucherStatus    @default(DRAFT)

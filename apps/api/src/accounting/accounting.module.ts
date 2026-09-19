@@ -31,6 +31,6 @@ import { AccountMappingsController } from "./account-mappings.controller";
     ReportsController,
     AccountMappingsController,
   ],
-  exports: [FiscalService, AccountsService, JournalEntriesService, AccountMappingsService, NumberingService],
+  exports: [FiscalService, AccountsService, JournalEntriesService, AccountMappingsService, NumberingService, ReportsService],
 })
 export class AccountingModule {}

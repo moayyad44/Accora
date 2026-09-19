@@ -27,6 +27,10 @@ export class CreateReceiptVoucherDto {
   @IsUUID()
   otherAccountId?: string;
 
+  @IsOptional()
+  @IsUUID()
+  salesInvoiceId?: string;
+
   @IsNumberString()
   amount!: string;
 

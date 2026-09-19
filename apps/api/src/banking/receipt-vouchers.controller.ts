@@ -45,6 +45,7 @@ export class ReceiptVouchersController {
         customerId: dto.customerId,
         supplierId: dto.supplierId,
         otherAccountId: dto.otherAccountId,
+        salesInvoiceId: dto.salesInvoiceId,
         amount: dto.amount,
         description: dto.description,
       }),

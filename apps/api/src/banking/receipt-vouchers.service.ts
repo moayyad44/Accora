@@ -14,6 +14,10 @@ export interface CreateReceiptVoucherInput {
   customerId?: string;
   supplierId?: string;
   otherAccountId?: string;
+  /** Optional — which sales invoice this receipt is against (CUSTOMER
+   * only). Purely a tracking link for AR aging; never changes the GL
+   * posting, which always credits the customer's AR account in aggregate. */
+  salesInvoiceId?: string;
   amount: string;
   description?: string;
 }
@@ -63,13 +67,21 @@ export class ReceiptVouchersService {
       if (!input.customerId) throw new BadRequestException("customerId is required when partyType is CUSTOMER");
       const customer = await tx.customer.findFirst({ where: { id: input.customerId, companyId } });
       if (!customer) throw new NotFoundException("Customer not found");
+      if (input.salesInvoiceId) {
+        const invoice = await tx.salesInvoice.findFirst({
+          where: { id: input.salesInvoiceId, companyId, customerId: input.customerId },
+        });
+        if (!invoice) throw new NotFoundException("Sales invoice not found for this customer");
+      }
     } else if (input.partyType === VoucherPartyType.SUPPLIER) {
       if (!input.supplierId) throw new BadRequestException("supplierId is required when partyType is SUPPLIER");
       const supplier = await tx.supplier.findFirst({ where: { id: input.supplierId, companyId } });
       if (!supplier) throw new NotFoundException("Supplier not found");
+      if (input.salesInvoiceId) throw new BadRequestException("salesInvoiceId is only valid when partyType is CUSTOMER");
     } else {
       if (!input.otherAccountId) throw new BadRequestException("otherAccountId is required when partyType is OTHER");
       await this.accountsService.requirePostable(tx, companyId, input.otherAccountId);
+      if (input.salesInvoiceId) throw new BadRequestException("salesInvoiceId is only valid when partyType is CUSTOMER");
     }
 
     const voucherNumber = await this.numberingService.next(
@@ -91,6 +103,7 @@ export class ReceiptVouchersService {
         customerId: input.partyType === VoucherPartyType.CUSTOMER ? input.customerId : undefined,
         supplierId: input.partyType === VoucherPartyType.SUPPLIER ? input.supplierId : undefined,
         otherAccountId: input.partyType === VoucherPartyType.OTHER ? input.otherAccountId : undefined,
+        salesInvoiceId: input.partyType === VoucherPartyType.CUSTOMER ? input.salesInvoiceId : undefined,
         amount: amount.toFixed(4),
         description: input.description,
         status: VoucherStatus.DRAFT,

@@ -42,4 +42,43 @@ export class ReportsController {
       ),
     );
   }
+
+  @Get("income-statement")
+  @RequirePermission("accounting", "financial_report", "view")
+  incomeStatement(
+    @CurrentUser() user: AccessTokenPayload,
+    @Query("dateFrom") dateFrom: string,
+    @Query("dateTo") dateTo: string,
+  ) {
+    const companyId = requireActiveCompany(user);
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) =>
+      this.reportsService.incomeStatement(tx, companyId, new Date(dateFrom), new Date(dateTo)),
+    );
+  }
+
+  @Get("balance-sheet")
+  @RequirePermission("accounting", "financial_report", "view")
+  balanceSheet(@CurrentUser() user: AccessTokenPayload, @Query("asOfDate") asOfDate?: string) {
+    const companyId = requireActiveCompany(user);
+    const date = asOfDate ? new Date(asOfDate) : new Date();
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) =>
+      this.reportsService.balanceSheet(tx, companyId, date),
+    );
+  }
+
+  @Get("ar-aging")
+  @RequirePermission("accounting", "financial_report", "view")
+  arAging(@CurrentUser() user: AccessTokenPayload, @Query("asOfDate") asOfDate?: string) {
+    const companyId = requireActiveCompany(user);
+    const date = asOfDate ? new Date(asOfDate) : new Date();
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) => this.reportsService.arAging(tx, companyId, date));
+  }
+
+  @Get("ap-aging")
+  @RequirePermission("accounting", "financial_report", "view")
+  apAging(@CurrentUser() user: AccessTokenPayload, @Query("asOfDate") asOfDate?: string) {
+    const companyId = requireActiveCompany(user);
+    const date = asOfDate ? new Date(asOfDate) : new Date();
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) => this.reportsService.apAging(tx, companyId, date));
+  }
 }

@@ -158,8 +158,9 @@ model SalesInvoice {
   postedAt             DateTime?
   createdAt            DateTime       @default(now())
 
-  lines   SalesInvoiceLine[]
-  returns SalesReturn[]
+  lines           SalesInvoiceLine[]
+  returns         SalesReturn[]
+  receiptVouchers ReceiptVoucher[]
 
   @@unique([companyId, invoiceNumber])
   @@map("sales_invoices")

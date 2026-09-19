@@ -27,6 +27,10 @@ export class CreatePaymentVoucherDto {
   @IsUUID()
   otherAccountId?: string;
 
+  @IsOptional()
+  @IsUUID()
+  purchaseInvoiceId?: string;
+
   @IsNumberString()
   amount!: string;
 
