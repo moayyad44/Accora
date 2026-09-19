@@ -6,11 +6,20 @@ import { AuthModule } from "./auth/auth.module";
 import { CompaniesModule } from "./companies/companies.module";
 import { UsersModule } from "./users/users.module";
 import { RolesModule } from "./roles/roles.module";
+import { AccountingModule } from "./accounting/accounting.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
 @Module({
-  imports: [PrismaModule, JwtModule.register({}), AuthModule, CompaniesModule, UsersModule, RolesModule],
+  imports: [
+    PrismaModule,
+    JwtModule.register({}),
+    AuthModule,
+    CompaniesModule,
+    UsersModule,
+    RolesModule,
+    AccountingModule,
+  ],
   providers: [
     // Order matters: JwtAuthGuard runs first and populates request.user,
     // PermissionsGuard then checks that user's role against @RequirePermission.

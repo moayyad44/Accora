@@ -1,9 +1,10 @@
-import { Controller, ForbiddenException, Get } from "@nestjs/common";
+import { Controller, Get } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { RolesService } from "./roles.service";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { RequirePermission } from "../common/decorators/require-permission.decorator";
 import { AccessTokenPayload } from "../common/types/auth-user";
+import { requireActiveCompany } from "../common/require-active-company";
 
 @Controller("roles")
 export class RolesController {
@@ -15,9 +16,9 @@ export class RolesController {
   @Get()
   @RequirePermission("core", "role", "view")
   list(@CurrentUser() user: AccessTokenPayload) {
-    if (!user.companyId) throw new ForbiddenException("No active company selected");
-    return this.prisma.withTenant({ companyId: user.companyId, userId: user.sub }, (tx) =>
-      this.rolesService.listForCompany(tx, user.companyId!),
+    const companyId = requireActiveCompany(user);
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) =>
+      this.rolesService.listForCompany(tx, companyId),
     );
   }
 }

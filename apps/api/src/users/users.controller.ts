@@ -4,7 +4,7 @@ import { UsersService } from "./users.service";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { RequirePermission } from "../common/decorators/require-permission.decorator";
 import { AccessTokenPayload } from "../common/types/auth-user";
-import { ForbiddenException } from "@nestjs/common";
+import { requireActiveCompany } from "../common/require-active-company";
 
 @Controller("users")
 export class UsersController {
@@ -23,9 +23,9 @@ export class UsersController {
   @Get()
   @RequirePermission("core", "user", "view")
   list(@CurrentUser() user: AccessTokenPayload) {
-    if (!user.companyId) throw new ForbiddenException("No active company selected");
-    return this.prisma.withTenant({ companyId: user.companyId, userId: user.sub }, (tx) =>
-      this.usersService.listCompanyUsers(tx, user.companyId!),
+    const companyId = requireActiveCompany(user);
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) =>
+      this.usersService.listCompanyUsers(tx, companyId),
     );
   }
 }
