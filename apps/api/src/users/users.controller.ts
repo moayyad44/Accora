@@ -15,8 +15,8 @@ export class UsersController {
 
   @Get("me")
   me(@CurrentUser() user: AccessTokenPayload) {
-    return this.prisma.withTenant({ companyId: user.companyId, userId: user.sub }, (tx) =>
-      this.usersService.me(tx, user.sub),
+    return this.prisma.withTenant({ companyId: user.companyId, userId: user.sub, isSuperAdmin: user.isSuperAdmin }, (tx) =>
+      this.usersService.me(tx, user.sub, user.companyId, user.roleId),
     );
   }
 

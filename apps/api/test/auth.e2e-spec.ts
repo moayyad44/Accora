@@ -79,6 +79,20 @@ describe("Auth / Companies / Users / Roles (e2e)", () => {
     expect(access?.roleId).toBe(adminRole?.id);
   });
 
+  it("GET /users/me returns the caller's own effective permissions for the active company", async () => {
+    const me = await request(app.getHttpServer())
+      .get("/users/me")
+      .set("Authorization", `Bearer ${companyAToken}`)
+      .expect(200);
+
+    expect(me.body.companyId).toBe(companyAId);
+    expect(me.body.role?.name).toBe("Company Admin");
+    expect(Array.isArray(me.body.permissions)).toBe(true);
+    // Company Admin is a system role granted every seeded permission.
+    expect(me.body.permissions.length).toBeGreaterThan(300);
+    expect(me.body.permissions).toContain("accounting.journal_entry.post");
+  });
+
   it("registers Company B with a different admin, completely independent of Company A", async () => {
     const res = await request(app.getHttpServer())
       .post("/auth/register-company")
