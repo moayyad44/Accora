@@ -39,6 +39,7 @@ export interface CreatePurchaseInvoiceLineInput {
   warehouseId: string;
   qty: string;
   unitCost: string;
+  taxGroupId?: string;
 }
 
 export interface CreatePurchaseInvoiceInput {

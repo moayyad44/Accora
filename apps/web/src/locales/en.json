@@ -684,5 +684,29 @@
     "totalDeductions": "Total deductions",
     "netPayable": "Net payable",
     "existingRunForPeriod": "A payroll run already exists for this period"
+  },
+  "tax": {
+    "taxTypes": "Tax types",
+    "taxTypesDesc": "Each tax type (e.g. sales tax, VAT) and its rates over time",
+    "addTaxType": "Add tax type",
+    "taxTypeCreated": "Tax type added successfully",
+    "rates": "Rates",
+    "addRate": "Add rate",
+    "rateCreated": "Rate added successfully",
+    "rateName": "Rate name",
+    "ratePercent": "Rate %",
+    "payableAccount": "Tax payable account",
+    "effectiveDate": "Effective date",
+    "noRates": "No rates recorded for this type yet",
+
+    "taxGroups": "Tax groups",
+    "taxGroupsDesc": "A bundle of tax rates applied together on an invoice line — each rate posts to its own account",
+    "addTaxGroup": "Add tax group",
+    "taxGroupCreated": "Tax group added successfully",
+    "includedRates": "Included rates",
+    "selectRates": "Select at least one rate",
+    "taxGroup": "Tax group",
+    "noTax": "No tax",
+    "onlyTaxTypesFirst": "Create a tax type with at least one rate before creating a group"
   }
 }

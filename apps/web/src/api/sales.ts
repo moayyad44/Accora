@@ -45,6 +45,7 @@ export interface CreateSalesInvoiceLineInput {
   unitPrice: string;
   discountAmount?: string;
   description?: string;
+  taxGroupId?: string;
 }
 
 export interface CreateSalesInvoiceInput {

@@ -47,6 +47,9 @@ import { EmployeeDetailPage } from "@/features/hr/EmployeeDetailPage";
 import { LeavesPage } from "@/features/hr/LeavesPage";
 import { PayrollRunsListPage } from "@/features/hr/PayrollRunsListPage";
 import { PayrollRunDetailPage } from "@/features/hr/PayrollRunDetailPage";
+import { TaxTypesPage } from "@/features/tax/TaxTypesPage";
+import { TaxTypeDetailPage } from "@/features/tax/TaxTypeDetailPage";
+import { TaxGroupsPage } from "@/features/tax/TaxGroupsPage";
 import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
 import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
 import { SalesInvoiceDetailPage } from "@/features/sales/SalesInvoiceDetailPage";
@@ -122,6 +125,10 @@ export function AppRouter() {
           <Route path="/hr/leaves" element={<LeavesPage />} />
           <Route path="/hr/payroll-runs" element={<PayrollRunsListPage />} />
           <Route path="/hr/payroll-runs/:id" element={<PayrollRunDetailPage />} />
+
+          <Route path="/tax/types" element={<TaxTypesPage />} />
+          <Route path="/tax/types/:id" element={<TaxTypeDetailPage />} />
+          <Route path="/tax/groups" element={<TaxGroupsPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />

@@ -21,6 +21,7 @@ import { purchasingApi } from "@/api/purchasing";
 import { partiesApi } from "@/api/parties";
 import { catalogApi } from "@/api/catalog";
 import { inventoryApi } from "@/api/inventory";
+import { taxApi } from "@/api/tax";
 import { ApiError } from "@/api/client";
 import { formatAmount } from "@/lib/format";
 
@@ -29,6 +30,7 @@ const lineSchema = z.object({
   warehouseId: z.string().min(1),
   qty: z.string().min(1),
   unitCost: z.string().min(1),
+  taxGroupId: z.string().optional(),
 });
 
 const schema = z.object({
@@ -55,12 +57,13 @@ export function NewPurchaseInvoicePage() {
   const suppliersQuery = useQuery({ queryKey: ["parties", "suppliers"], queryFn: partiesApi.suppliers.list });
   const itemsQuery = useQuery({ queryKey: ["catalog", "items"], queryFn: catalogApi.items.list });
   const warehousesQuery = useQuery({ queryKey: ["inventory", "warehouses"], queryFn: inventoryApi.warehouses.list });
+  const taxGroupsQuery = useQuery({ queryKey: ["tax", "groups"], queryFn: taxApi.groups.list });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       invoiceDate: new Date().toISOString().slice(0, 10),
-      lines: [{ itemId: "", warehouseId: "", qty: "1", unitCost: "" }],
+      lines: [{ itemId: "", warehouseId: "", qty: "1", unitCost: "", taxGroupId: undefined }],
     },
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
@@ -84,7 +87,7 @@ export function NewPurchaseInvoicePage() {
       supplierId: values.supplierId,
       invoiceDate: values.invoiceDate,
       dueDate: values.dueDate || undefined,
-      lines: values.lines,
+      lines: values.lines.map((l) => ({ ...l, taxGroupId: l.taxGroupId || undefined })),
     });
   };
 
@@ -158,11 +161,12 @@ export function NewPurchaseInvoicePage() {
             <div className="mt-2">
               <Label>{t("accounting.lines")}</Label>
               <div className="mt-2 flex flex-col gap-2">
-                <div className="hidden gap-2 px-1 text-xs font-semibold uppercase text-muted sm:grid sm:grid-cols-[1fr_1fr_90px_110px_110px_36px]">
+                <div className="hidden gap-2 px-1 text-xs font-semibold uppercase text-muted sm:grid sm:grid-cols-[1fr_1fr_80px_100px_1fr_100px_36px]">
                   <span>{t("sales.item")}</span>
                   <span>{t("sales.warehouse")}</span>
                   <span>{t("sales.qty")}</span>
                   <span>{t("purchasing.unitCost")}</span>
+                  <span>{t("tax.taxGroup")}</span>
                   <span>{t("sales.lineTotal")}</span>
                   <span />
                 </div>
@@ -174,7 +178,7 @@ export function NewPurchaseInvoicePage() {
                     <div
                       key={field.id}
                       data-testid={`purchase-line-${index}`}
-                      className="grid grid-cols-1 items-start gap-2 rounded-md border border-border p-2 sm:grid-cols-[1fr_1fr_90px_110px_110px_36px] sm:border-0 sm:p-0"
+                      className="grid grid-cols-1 items-start gap-2 rounded-md border border-border p-2 sm:grid-cols-[1fr_1fr_80px_100px_1fr_100px_36px] sm:border-0 sm:p-0"
                     >
                       <Controller
                         control={form.control}
@@ -219,6 +223,25 @@ export function NewPurchaseInvoicePage() {
                         className="text-end tabular-nums"
                         {...form.register(`lines.${index}.unitCost`)}
                       />
+                      <Controller
+                        control={form.control}
+                        name={`lines.${index}.taxGroupId`}
+                        render={({ field: f }) => (
+                          <Select value={f.value ?? "none"} onValueChange={(v) => f.onChange(v === "none" ? undefined : v)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder={t("tax.noTax")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">{t("tax.noTax")}</SelectItem>
+                              {taxGroupsQuery.data?.map((g) => (
+                                <SelectItem key={g.id} value={g.id}>
+                                  {g.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
                       <span className="flex items-center justify-end text-sm font-medium tabular-nums text-foreground">
                         {formatAmount(lineTotal.toString())}
                       </span>
@@ -235,7 +258,7 @@ export function NewPurchaseInvoicePage() {
                 variant="outline"
                 size="sm"
                 className="mt-2"
-                onClick={() => append({ itemId: "", warehouseId: "", qty: "1", unitCost: "" })}
+                onClick={() => append({ itemId: "", warehouseId: "", qty: "1", unitCost: "", taxGroupId: undefined })}
               >
                 <Plus className="size-4" />
                 {t("sales.addLine")}

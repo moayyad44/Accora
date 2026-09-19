@@ -32,6 +32,8 @@ import {
   Contact,
   CalendarDays,
   Wallet,
+  Percent,
+  Layers,
 } from "lucide-react";
 
 export interface NavItem {
@@ -230,6 +232,13 @@ export const NAV_SECTIONS: NavSection[] = [
       { path: "/hr/employees", labelKey: "hr.employees", icon: Contact, permission: "hr.employee.view" },
       { path: "/hr/leaves", labelKey: "hr.leaves", icon: CalendarDays, permission: "hr.leave.view" },
       { path: "/hr/payroll-runs", labelKey: "hr.payrollRuns", icon: Wallet, permission: "hr.payroll_run.view" },
+    ],
+  },
+  {
+    labelKey: "nav.taxes",
+    items: [
+      { path: "/tax/types", labelKey: "tax.taxTypes", icon: Percent, permission: "tax.tax_type.view" },
+      { path: "/tax/groups", labelKey: "tax.taxGroups", icon: Layers, permission: "tax.tax_group.view" },
     ],
   },
 ];
