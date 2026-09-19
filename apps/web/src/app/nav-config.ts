@@ -8,6 +8,12 @@ import {
   Scale,
   FileBarChart,
   BookOpenCheck,
+  Users,
+  ReceiptText,
+  Truck,
+  FileStack,
+  Package,
+  Warehouse,
 } from "lucide-react";
 
 export interface NavItem {
@@ -87,6 +93,32 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: FileBarChart,
         permission: "accounting.financial_report.view",
       },
+    ],
+  },
+  {
+    labelKey: "nav.sales",
+    items: [
+      { path: "/sales/customers", labelKey: "nav.customers", icon: Users, permission: "sales.customer.view" },
+      { path: "/sales/invoices", labelKey: "nav.salesInvoices", icon: ReceiptText, permission: "sales.sales_invoice.view" },
+    ],
+  },
+  {
+    labelKey: "nav.purchasing",
+    items: [
+      { path: "/purchasing/suppliers", labelKey: "nav.suppliers", icon: Truck, permission: "purchasing.supplier.view" },
+      {
+        path: "/purchasing/invoices",
+        labelKey: "nav.purchaseInvoices",
+        icon: FileStack,
+        permission: "purchasing.purchase_invoice.view",
+      },
+    ],
+  },
+  {
+    labelKey: "nav.inventory",
+    items: [
+      { path: "/inventory/items", labelKey: "nav.items", icon: Package, permission: "inventory.item.view" },
+      { path: "/inventory/warehouses", labelKey: "nav.warehouses", icon: Warehouse, permission: "inventory.warehouse.view" },
     ],
   },
 ];

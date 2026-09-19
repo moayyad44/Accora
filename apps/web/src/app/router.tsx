@@ -14,6 +14,16 @@ import { TrialBalancePage } from "@/features/accounting/reports/TrialBalancePage
 import { GeneralLedgerPage } from "@/features/accounting/reports/GeneralLedgerPage";
 import { IncomeStatementPage } from "@/features/accounting/reports/IncomeStatementPage";
 import { BalanceSheetPage } from "@/features/accounting/reports/BalanceSheetPage";
+import { CustomersPage } from "@/features/parties/CustomersPage";
+import { SuppliersPage } from "@/features/parties/SuppliersPage";
+import { ItemsPage } from "@/features/inventory/ItemsPage";
+import { WarehousesPage } from "@/features/inventory/WarehousesPage";
+import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
+import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
+import { SalesInvoiceDetailPage } from "@/features/sales/SalesInvoiceDetailPage";
+import { PurchaseInvoicesListPage } from "@/features/purchasing/PurchaseInvoicesListPage";
+import { NewPurchaseInvoicePage } from "@/features/purchasing/NewPurchaseInvoicePage";
+import { PurchaseInvoiceDetailPage } from "@/features/purchasing/PurchaseInvoiceDetailPage";
 import { ForbiddenPage } from "@/pages/ForbiddenPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
@@ -37,6 +47,19 @@ export function AppRouter() {
           <Route path="/accounting/reports/general-ledger" element={<GeneralLedgerPage />} />
           <Route path="/accounting/reports/income-statement" element={<IncomeStatementPage />} />
           <Route path="/accounting/reports/balance-sheet" element={<BalanceSheetPage />} />
+
+          <Route path="/sales/customers" element={<CustomersPage />} />
+          <Route path="/sales/invoices" element={<SalesInvoicesListPage />} />
+          <Route path="/sales/invoices/new" element={<NewSalesInvoicePage />} />
+          <Route path="/sales/invoices/:id" element={<SalesInvoiceDetailPage />} />
+
+          <Route path="/purchasing/suppliers" element={<SuppliersPage />} />
+          <Route path="/purchasing/invoices" element={<PurchaseInvoicesListPage />} />
+          <Route path="/purchasing/invoices/new" element={<NewPurchaseInvoicePage />} />
+          <Route path="/purchasing/invoices/:id" element={<PurchaseInvoiceDetailPage />} />
+
+          <Route path="/inventory/items" element={<ItemsPage />} />
+          <Route path="/inventory/warehouses" element={<WarehousesPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />
