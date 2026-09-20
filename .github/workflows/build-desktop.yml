@@ -1,0 +1,58 @@
+name: Build Desktop App
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - claude/integrated-accounting-program-6146gb
+    paths:
+      - "apps/desktop/**"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/build-desktop.yml"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            artifact-glob: apps/desktop/release/*.exe
+            artifact-name: Accora-Windows-Installer
+          - os: macos-latest
+            target: mac
+            artifact-glob: apps/desktop/release/*.dmg
+            artifact-name: Accora-macOS-Installer
+          - os: ubuntu-latest
+            target: linux
+            artifact-glob: apps/desktop/release/*.AppImage
+            artifact-name: Accora-Linux-AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and package desktop app
+        working-directory: apps/desktop
+        run: npm run package -- --${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-glob }}
+          if-no-files-found: error

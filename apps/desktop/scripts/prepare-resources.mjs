@@ -22,7 +22,9 @@ const apiSourceDir = path.join(repoRoot, "apps", "api");
 
 function run(command, args, cwd) {
   console.log(`$ ${command} ${args.join(" ")}`);
-  execFileSync(command, args, { cwd, stdio: "inherit" });
+  // On Windows, npm/pnpm are .cmd shims that execFileSync can't exec
+  // directly without going through a shell.
+  execFileSync(command, args, { cwd, stdio: "inherit", shell: process.platform === "win32" });
 }
 
 console.log("Building apps/api...");
