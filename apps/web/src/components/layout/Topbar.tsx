@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Building2, Check, ChevronDown, Languages, LogOut, Menu, Moon, Sun, SunMoon, User } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Building2, Check, ChevronDown, HelpCircle, Languages, LogOut, Menu, Moon, Sun, SunMoon, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -67,6 +68,12 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
       </div>
 
       <div className="flex items-center gap-1.5">
+        <Button variant="ghost" size="icon" aria-label={t("help.title")} asChild>
+          <Link to="/help">
+            <HelpCircle className="size-4.5" />
+          </Link>
+        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label={t("common.search")}>

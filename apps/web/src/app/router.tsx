@@ -62,6 +62,7 @@ import { ApprovalRequestsPage } from "@/features/approvals/ApprovalRequestsPage"
 import { UsersPage } from "@/features/settings/UsersPage";
 import { RolesPage } from "@/features/settings/RolesPage";
 import { AccountMappingsPage } from "@/features/settings/AccountMappingsPage";
+import { HelpPage } from "@/features/help/HelpPage";
 import { AuditLogPage } from "@/features/audit/AuditLogPage";
 import { SalesInvoicesListPage } from "@/features/sales/SalesInvoicesListPage";
 import { NewSalesInvoicePage } from "@/features/sales/NewSalesInvoicePage";
@@ -159,6 +160,8 @@ export function AppRouter() {
           <Route path="/settings/account-mappings" element={<AccountMappingsPage />} />
 
           <Route path="/audit-log" element={<AuditLogPage />} />
+
+          <Route path="/help" element={<HelpPage />} />
 
           <Route path="/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<NotFoundPage />} />

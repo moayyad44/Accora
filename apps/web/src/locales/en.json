@@ -860,5 +860,117 @@
     "before": "Before",
     "after": "After",
     "noChanges": "No data"
+  },
+  "help": {
+    "title": "User Guide",
+    "subtitle": "A quick walkthrough of every module in Accora, in a sensible order to get started",
+    "tocTitle": "Sections",
+    "sections": {
+      "gettingStarted": {
+        "title": "Getting Started",
+        "items": [
+          "Register your company from \"Register a new company\" with the company name, base currency, and the admin's details — a chart of accounts and a full set of roles/permissions are cloned for your company automatically.",
+          "Switch between multiple companies from the menu at the top of the screen without logging out.",
+          "Create a fiscal year first, under Accounting → Fiscal Years — no journal entry or invoice can be posted without an open fiscal period covering its date.",
+          "Review the chart of accounts (Accounting → Chart of Accounts) and adjust it to your needs before you start working."
+        ]
+      },
+      "accounting": {
+        "title": "Accounting",
+        "items": [
+          "Chart of Accounts: view and add accounts by type (asset, liability, equity, revenue, expense).",
+          "Journal Entries: create a balanced manual entry (debits = credits), post it, and reverse any posted entry later if needed.",
+          "Cost Centers: track revenue and expenses against a specific cost center.",
+          "Reports: Trial Balance, General Ledger per account, Income Statement, Balance Sheet, and AR/AP Aging."
+        ]
+      },
+      "sales": {
+        "title": "Sales",
+        "items": [
+          "Add your customers under Sales → Customers.",
+          "Create a sales invoice (cash or credit), choosing the item, warehouse, quantity and price per line, with an optional tax group per line.",
+          "Posting the invoice automatically creates a journal entry and deducts stock from the chosen warehouse."
+        ]
+      },
+      "purchasing": {
+        "title": "Purchasing",
+        "items": [
+          "Add your suppliers under Purchasing → Suppliers.",
+          "Create a purchase invoice the same way as a sales invoice — posting it automatically increases stock on hand.",
+          "If the invoice exceeds a threshold covered by an active approval workflow, posting is blocked until it's approved from the Approvals screen."
+        ]
+      },
+      "inventory": {
+        "title": "Inventory",
+        "items": [
+          "Items: add units of measure first, then items, choosing each item's type (trading, raw material, semi-finished, finished good, service).",
+          "Warehouses: create one or more warehouses to spread stock across.",
+          "Stock Balances and the item card: track each item's current quantity and value per warehouse, plus its detailed movement history.",
+          "Transfers between warehouses and manual adjustments (increase or decrease) — both automatically generate the matching accounting effect.",
+          "Stock Counts: a physical count reconciled against the book balances.",
+          "Expiring Batches: track items tied to a batch approaching its expiry date."
+        ]
+      },
+      "manufacturing": {
+        "title": "Manufacturing",
+        "items": [
+          "Work Centers: the production points used by BOMs and production orders.",
+          "Bills of Materials (BOM): the components and quantities needed to produce one unit of a finished or semi-finished item — can be multi-level.",
+          "Standard Costs: the expected cost per unit produced, used to compare against actual cost when a production order is completed.",
+          "Production Orders: create an order for a quantity, \"release\" it to pull raw materials from stock, then \"complete\" it with labor and overhead cost — the produced quantity is added to the finished item's stock automatically."
+        ]
+      },
+      "fixedAssets": {
+        "title": "Fixed Assets",
+        "items": [
+          "Asset Categories: set the depreciation method (straight-line or declining-balance) and useful life for each category.",
+          "Register each new asset with its cost, category, and funding source.",
+          "Run \"Depreciation Run\" periodically (e.g. monthly) to calculate depreciation for all active assets automatically.",
+          "When an asset is sold or disposed of, enter the proceeds and the system calculates and posts the gain or loss automatically."
+        ]
+      },
+      "hr": {
+        "title": "HR & Payroll",
+        "items": [
+          "Create departments and positions first, then register employees and their contracts (base salary and contract details).",
+          "From each employee's page you can record their attendance and loans.",
+          "Leaves: submit a leave request and approve or reject it from one screen covering all of the company's requests.",
+          "Payroll Runs: create a run for a period (auto-filled with a basic-salary item per employee), add other items like loan repayments or allowances, then approve and post it."
+        ]
+      },
+      "tax": {
+        "title": "Tax",
+        "items": [
+          "Tax Types: define each tax type (e.g. sales tax) and the account it posts to, with one or more rates per type.",
+          "Tax Groups: bundle one or more rates into a group, then pick that group on a sales or purchase invoice line to have tax calculated automatically."
+        ]
+      },
+      "banking": {
+        "title": "Banking",
+        "items": [
+          "Add your cash and bank accounts — each one is linked to a GL account in the chart of accounts.",
+          "Receipt Vouchers: record money received from a customer, supplier, or other party, then post it.",
+          "Payment Vouchers: record money paid to a supplier or other party, then post it.",
+          "Transfers: move money between two of the company's cash/bank accounts.",
+          "Reconciliation: enter the bank statement balance and date, and mark the matching transactions as reconciled against it."
+        ]
+      },
+      "governance": {
+        "title": "Approvals & Audit Log",
+        "items": [
+          "Approval Workflows: create a workflow for a document type (e.g. purchase invoices) with a minimum amount and one or more approval steps — any document under the threshold needs no approval.",
+          "Approval Requests: when a document's posting is blocked by its workflow, request approval from this screen, then have it approved or rejected by whoever holds that permission.",
+          "Audit Log: a permanent, unchangeable record of every posting and login, with a before/after view of each change — useful for review and audit."
+        ]
+      },
+      "settings": {
+        "title": "Settings",
+        "items": [
+          "Users: see who has access to this company and their role.",
+          "Roles: see the available roles and each one's full permission list.",
+          "Default Accounts: the GL accounts the system uses automatically when posting (e.g. the accounts-receivable or inventory account) — re-point any of them to a different account from here."
+        ]
+      }
+    }
   }
 }
