@@ -16,6 +16,8 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import { purchasingApi } from "@/api/purchasing";
 import { partiesApi } from "@/api/parties";
@@ -24,6 +26,7 @@ import { inventoryApi } from "@/api/inventory";
 import { taxApi } from "@/api/tax";
 import { ApiError } from "@/api/client";
 import { formatAmount } from "@/lib/format";
+import { createGridPasteHandler, resolveOptionId, type GridOption } from "@/lib/gridPaste";
 
 const lineSchema = z.object({
   itemId: z.string().min(1),
@@ -47,6 +50,8 @@ function toDecimal(value: string | undefined): Decimal {
   return d.isNaN() ? new Decimal(0) : d;
 }
 
+const emptyLine = { itemId: "", warehouseId: "", qty: "1", unitCost: "", taxGroupId: undefined };
+
 export function NewPurchaseInvoicePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -59,17 +64,38 @@ export function NewPurchaseInvoicePage() {
   const warehousesQuery = useQuery({ queryKey: ["inventory", "warehouses"], queryFn: inventoryApi.warehouses.list });
   const taxGroupsQuery = useQuery({ queryKey: ["tax", "groups"], queryFn: taxApi.groups.list });
 
+  const itemOptions: GridOption[] = (itemsQuery.data ?? []).map((i) => ({ value: i.id, label: `${i.sku} — ${i.name}`, code: i.sku }));
+  const warehouseOptions: GridOption[] = (warehousesQuery.data ?? []).map((w) => ({ value: w.id, label: `${w.code} — ${w.name}`, code: w.code }));
+  const taxGroupOptions: GridOption[] = [
+    { value: "", label: t("tax.noTax") },
+    ...(taxGroupsQuery.data ?? []).map((g) => ({ value: g.id, label: g.name })),
+  ];
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       invoiceDate: new Date().toISOString().slice(0, 10),
-      lines: [{ itemId: "", warehouseId: "", qty: "1", unitCost: "", taxGroupId: undefined }],
+      lines: [emptyLine],
     },
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const watchedLines = form.watch("lines");
 
   const subtotal = watchedLines.reduce((sum, l) => sum.plus(toDecimal(l.qty).times(toDecimal(l.unitCost))), new Decimal(0));
+
+  const handlePaste = createGridPasteHandler({
+    linesPath: "lines",
+    currentRowCount: fields.length,
+    appendRow: () => append(emptyLine),
+    setValue: (path, value) => form.setValue(path as never, value as never),
+    columns: [
+      { key: "itemId", resolve: (text) => resolveOptionId(itemOptions, text) ?? "" },
+      { key: "warehouseId", resolve: (text) => resolveOptionId(warehouseOptions, text) ?? "" },
+      { key: "qty", resolve: (text) => text.trim() },
+      { key: "unitCost", resolve: (text) => text.trim() },
+      { key: "taxGroupId", resolve: (text) => resolveOptionId(taxGroupOptions, text) ?? "" },
+    ],
+  });
 
   const createMutation = useMutation({
     mutationFn: purchasingApi.invoices.create,
@@ -160,106 +186,108 @@ export function NewPurchaseInvoicePage() {
 
             <div className="mt-2">
               <Label>{t("accounting.lines")}</Label>
-              <div className="mt-2 flex flex-col gap-2">
-                <div className="hidden gap-2 px-1 text-xs font-semibold uppercase text-muted sm:grid sm:grid-cols-[1fr_1fr_80px_100px_1fr_100px_36px]">
-                  <span>{t("sales.item")}</span>
-                  <span>{t("sales.warehouse")}</span>
-                  <span>{t("sales.qty")}</span>
-                  <span>{t("purchasing.unitCost")}</span>
-                  <span>{t("tax.taxGroup")}</span>
-                  <span>{t("sales.lineTotal")}</span>
-                  <span />
-                </div>
+              <p className="mb-2 mt-1 text-xs text-muted">{t("common.pasteHint")}</p>
 
-                {fields.map((field, index) => {
-                  const line = watchedLines[index];
-                  const lineTotal = toDecimal(line?.qty).times(toDecimal(line?.unitCost));
-                  return (
-                    <div
-                      key={field.id}
-                      data-testid={`purchase-line-${index}`}
-                      className="grid grid-cols-1 items-start gap-2 rounded-md border border-border p-2 sm:grid-cols-[1fr_1fr_80px_100px_1fr_100px_36px] sm:border-0 sm:p-0"
-                    >
-                      <Controller
-                        control={form.control}
-                        name={`lines.${index}.itemId`}
-                        render={({ field: f }) => (
-                          <Select value={f.value} onValueChange={f.onChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("sales.item")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {itemsQuery.data?.map((i) => (
-                                <SelectItem key={i.id} value={i.id}>
-                                  {i.sku} — {i.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      <Controller
-                        control={form.control}
-                        name={`lines.${index}.warehouseId`}
-                        render={({ field: f }) => (
-                          <Select value={f.value} onValueChange={f.onChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("sales.warehouse")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {warehousesQuery.data?.map((w) => (
-                                <SelectItem key={w.id} value={w.id}>
-                                  {w.code} — {w.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      <Input inputMode="decimal" className="text-end tabular-nums" {...form.register(`lines.${index}.qty`)} />
-                      <Input
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        className="text-end tabular-nums"
-                        {...form.register(`lines.${index}.unitCost`)}
-                      />
-                      <Controller
-                        control={form.control}
-                        name={`lines.${index}.taxGroupId`}
-                        render={({ field: f }) => (
-                          <Select value={f.value ?? "none"} onValueChange={(v) => f.onChange(v === "none" ? undefined : v)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("tax.noTax")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">{t("tax.noTax")}</SelectItem>
-                              {taxGroupsQuery.data?.map((g) => (
-                                <SelectItem key={g.id} value={g.id}>
-                                  {g.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      <span className="flex items-center justify-end text-sm font-medium tabular-nums text-foreground">
-                        {formatAmount(lineTotal.toString())}
-                      </span>
-                      <Button type="button" variant="ghost" size="icon" disabled={fields.length <= 1} onClick={() => remove(index)}>
-                        <Trash2 className="size-4 text-error" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
+              <TableContainer>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[200px] border-e border-border">{t("sales.item")}</TableHead>
+                      <TableHead className="min-w-[160px] border-e border-border">{t("sales.warehouse")}</TableHead>
+                      <TableHead className="w-24 border-e border-border">{t("sales.qty")}</TableHead>
+                      <TableHead className="w-28 border-e border-border">{t("purchasing.unitCost")}</TableHead>
+                      <TableHead className="min-w-[140px] border-e border-border">{t("tax.taxGroup")}</TableHead>
+                      <TableHead className="w-28 border-e border-border">{t("sales.lineTotal")}</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fields.map((field, index) => {
+                      const line = watchedLines[index];
+                      const lineTotal = toDecimal(line?.qty).times(toDecimal(line?.unitCost));
+                      return (
+                        <TableRow key={field.id} data-testid={`purchase-line-${index}`}>
+                          <TableCell className="border-e border-border p-1">
+                            <Controller
+                              control={form.control}
+                              name={`lines.${index}.itemId`}
+                              render={({ field: f }) => (
+                                <Combobox
+                                  value={f.value}
+                                  onValueChange={(v) => f.onChange(v ?? "")}
+                                  options={itemOptions}
+                                  placeholder={t("sales.item")}
+                                  noResultsLabel={t("common.noResults")}
+                                  onPaste={(e) => handlePaste(e, index, 0)}
+                                />
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="border-e border-border p-1">
+                            <Controller
+                              control={form.control}
+                              name={`lines.${index}.warehouseId`}
+                              render={({ field: f }) => (
+                                <Combobox
+                                  value={f.value}
+                                  onValueChange={(v) => f.onChange(v ?? "")}
+                                  options={warehouseOptions}
+                                  placeholder={t("sales.warehouse")}
+                                  noResultsLabel={t("common.noResults")}
+                                  onPaste={(e) => handlePaste(e, index, 1)}
+                                />
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="border-e border-border p-1">
+                            <Input
+                              inputMode="decimal"
+                              className="h-9 border-0 bg-transparent text-end tabular-nums focus-visible:ring-1"
+                              {...form.register(`lines.${index}.qty`)}
+                              onPaste={(e) => handlePaste(e, index, 2)}
+                            />
+                          </TableCell>
+                          <TableCell className="border-e border-border p-1">
+                            <Input
+                              inputMode="decimal"
+                              placeholder="0.00"
+                              className="h-9 border-0 bg-transparent text-end tabular-nums focus-visible:ring-1"
+                              {...form.register(`lines.${index}.unitCost`)}
+                              onPaste={(e) => handlePaste(e, index, 3)}
+                            />
+                          </TableCell>
+                          <TableCell className="border-e border-border p-1">
+                            <Controller
+                              control={form.control}
+                              name={`lines.${index}.taxGroupId`}
+                              render={({ field: f }) => (
+                                <Combobox
+                                  value={f.value ?? ""}
+                                  onValueChange={(v) => f.onChange(v || undefined)}
+                                  options={taxGroupOptions}
+                                  placeholder={t("tax.noTax")}
+                                  noResultsLabel={t("common.noResults")}
+                                  onPaste={(e) => handlePaste(e, index, 4)}
+                                />
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="border-e border-border p-1 text-end text-sm font-medium tabular-nums text-foreground">
+                            {formatAmount(lineTotal.toString())}
+                          </TableCell>
+                          <TableCell className="p-1 text-center">
+                            <Button type="button" variant="ghost" size="icon" disabled={fields.length <= 1} onClick={() => remove(index)}>
+                              <Trash2 className="size-4 text-error" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => append({ itemId: "", warehouseId: "", qty: "1", unitCost: "", taxGroupId: undefined })}
-              >
+              <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => append(emptyLine)}>
                 <Plus className="size-4" />
                 {t("sales.addLine")}
               </Button>
