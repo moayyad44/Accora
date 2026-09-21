@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from "electron";
+import { app, BrowserWindow, dialog, Menu, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import http from "node:http";
@@ -29,6 +29,77 @@ let apiProcess: ChildProcess | null = null;
 let embeddedPg: EmbeddedPg | null = null;
 let loadingWindow: BrowserWindow | null = null;
 let mainWindow: BrowserWindow | null = null;
+let appOrigin = "";
+
+// Some workflows (filling in a journal entry while checking a stock count,
+// or an item card) need a second screen open at the same time without
+// losing the first one's unsaved work — a single window can't do that.
+// This tracks every open app window so "New Window" (menu + Ctrl/Cmd+N)
+// can open as many independent ones as needed.
+const appWindows = new Set<BrowserWindow>();
+
+async function createAppWindow(url: string = appOrigin): Promise<BrowserWindow> {
+  const win = new BrowserWindow({
+    width: 1360,
+    height: 860,
+    show: false,
+    title: "Accora",
+    webPreferences: { contextIsolation: true },
+  });
+  appWindows.add(win);
+  win.on("closed", () => appWindows.delete(win));
+  win.once("ready-to-show", () => win.show());
+
+  // A link that asks for a new tab/window (target="_blank", window.open)
+  // opens another app window for our own pages, or the system browser for
+  // anything external — Electron does neither by default.
+  win.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
+    if (targetUrl.startsWith(appOrigin)) {
+      void createAppWindow(targetUrl);
+    } else {
+      void shell.openExternal(targetUrl);
+    }
+    return { action: "deny" };
+  });
+
+  await win.loadURL(url);
+  return win;
+}
+
+function buildMenu() {
+  const isMac = process.platform === "darwin";
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac ? [{ label: app.name, role: "appMenu" as const }] : []),
+    {
+      label: "ملف",
+      submenu: [
+        { label: "نافذة جديدة", accelerator: "CmdOrCtrl+N", click: () => createAppWindow() },
+        { type: "separator" as const },
+        isMac ? { role: "close" as const, label: "إغلاق النافذة" } : { role: "quit" as const, label: "خروج" },
+      ],
+    },
+    {
+      label: "تحرير",
+      submenu: [
+        { role: "undo", label: "تراجع" },
+        { role: "redo", label: "إعادة" },
+        { type: "separator" as const },
+        { role: "cut", label: "قص" },
+        { role: "copy", label: "نسخ" },
+        { role: "paste", label: "لصق" },
+        { role: "selectAll", label: "تحديد الكل" },
+      ],
+    },
+    {
+      label: "عرض",
+      submenu: [
+        { role: "reload", label: "تحديث" },
+        { role: "togglefullscreen", label: "ملء الشاشة" },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
 
 function log(message: string) {
   console.log(`[accora-desktop] ${message}`);
@@ -145,15 +216,9 @@ async function bootstrap() {
   log("جاري تحضير الواجهة...");
   await startStaticServer({ webDistDir, apiPort: API_PORT, staticPort: STATIC_PORT });
 
-  mainWindow = new BrowserWindow({
-    width: 1360,
-    height: 860,
-    show: false,
-    title: "Accora",
-    webPreferences: { contextIsolation: true },
-  });
-  await mainWindow.loadURL(`http://127.0.0.1:${STATIC_PORT}/`);
-  mainWindow.show();
+  appOrigin = `http://127.0.0.1:${STATIC_PORT}/`;
+  buildMenu();
+  mainWindow = await createAppWindow();
   loadingWindow?.close();
   loadingWindow = null;
 
@@ -163,6 +228,10 @@ async function bootstrap() {
   // packaged app.
   if (process.env.ACCORA_DESKTOP_TEST_SCREENSHOT) {
     setTimeout(async () => {
+      if (process.env.ACCORA_DESKTOP_TEST_NEW_WINDOW) {
+        await createAppWindow();
+        console.log(`[accora-desktop] window count after New Window: ${BrowserWindow.getAllWindows().length}`);
+      }
       const image = await mainWindow!.webContents.capturePage();
       fs.writeFileSync(process.env.ACCORA_DESKTOP_TEST_SCREENSHOT!, image.toPNG());
       console.log(`[accora-desktop] screenshot saved to ${process.env.ACCORA_DESKTOP_TEST_SCREENSHOT}`);
