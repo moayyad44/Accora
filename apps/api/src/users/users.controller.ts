@@ -1,6 +1,8 @@
-import { Controller, Get } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "./users.service";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { RequirePermission } from "../common/decorators/require-permission.decorator";
 import { AccessTokenPayload } from "../common/types/auth-user";
@@ -26,6 +28,27 @@ export class UsersController {
     const companyId = requireActiveCompany(user);
     return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) =>
       this.usersService.listCompanyUsers(tx, companyId),
+    );
+  }
+
+  @Post()
+  @RequirePermission("core", "user", "create")
+  create(@CurrentUser() user: AccessTokenPayload, @Body() dto: CreateUserDto) {
+    const companyId = requireActiveCompany(user);
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) =>
+      this.usersService.createCompanyUser(tx, companyId, dto),
+    );
+  }
+
+  @Patch(":id")
+  @RequirePermission("core", "user", "update")
+  update(@CurrentUser() user: AccessTokenPayload, @Param("id") id: string, @Body() dto: UpdateUserDto) {
+    const companyId = requireActiveCompany(user);
+    if (id === user.sub && dto.isActive === false) {
+      throw new BadRequestException("You cannot deactivate your own account");
+    }
+    return this.prisma.withTenant({ companyId, userId: user.sub }, (tx) =>
+      this.usersService.updateCompanyUser(tx, companyId, id, dto),
     );
   }
 }
