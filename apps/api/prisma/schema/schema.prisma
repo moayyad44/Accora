@@ -1,6 +1,10 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["prismaSchemaFolder", "postgresqlExtensions"]
+  // "native" covers every server/CI platform this already ran on; the rest
+  // are needed only so the desktop app (apps/desktop) can ship a working
+  // Prisma engine on whichever OS it's packaged for.
+  binaryTargets   = ["native", "windows", "darwin", "darwin-arm64", "debian-openssl-3.0.x"]
 }
 
 datasource db {

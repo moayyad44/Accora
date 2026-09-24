@@ -1,0 +1,53 @@
+appId: com.accora.desktop
+productName: Accora
+# package.json's "name" is the scoped `@accora/desktop`, which electron-builder
+# can't safely derive a filesystem executable name from (npm scope characters
+# are invalid in a binary filename) — set it explicitly.
+executableName: accora
+# No update server/repository is configured for this app — disable
+# electron-builder's auto-update metadata generation (it otherwise crashes
+# trying to infer a publish provider from a nonexistent "repository" field).
+publish: null
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - loading.html
+  - package.json
+# The compiled NestJS API (with a full, symlink-resolved node_modules —
+# produced by `pnpm deploy`, see scripts/prepare-resources.mjs) and the
+# built React SPA are not npm dependencies of this package — they're
+# copied in as plain resources so main.ts can spawn/serve them at
+# runtime. See src/main.ts's apiDir/webDistDir resolution.
+extraResources:
+  - from: resources/api
+    to: api
+  - from: resources/web
+    to: web
+# embedded-postgres isn't asar-aware — it computes its bundled binaries'
+# paths itself and spawns them directly, without rewriting `.asar` ->
+# `.asar.unpacked` the way Electron's own patched fs calls do. asarUnpack
+# only fixes plain file reads, not spawn(), so the simplest correct fix is
+# to skip asar packing for this app entirely (it's a minor optimization,
+# not a functional requirement, and this app already ships its own separate
+# large `resources/api` folder outside asar anyway).
+asar: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  category: public.app-category.finance
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  category: Office
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always

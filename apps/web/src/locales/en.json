@@ -17,6 +17,7 @@
     "loading": "Loading...",
     "noData": "No data to display",
     "noResults": "No matching results",
+    "pasteHint": "You can copy a block of rows from Excel and paste it here directly — columns and rows fill in automatically.",
     "errorTitle": "Something went wrong",
     "errorGeneric": "We couldn't complete that action. Please try again, and contact support if it keeps happening.",
     "retry": "Retry",
@@ -806,7 +807,13 @@
     "accountMappings": "Default Accounts",
     "accountMappingsDesc": "The GL accounts automatically used when posting transactions across the different modules",
     "mappingKey": "Transaction type",
-    "mappingUpdated": "Default account updated"
+    "mappingUpdated": "Default account updated",
+    "addUser": "Add User",
+    "password": "Password",
+    "passwordHint": "An initial password set by the admin — share it with the employee so they can change it later.",
+    "userCreated": "User account created",
+    "userUpdated": "User updated",
+    "cannotDeactivateSelf": "You cannot deactivate your own account"
   },
   "approvals": {
     "workflows": "Approval workflows",
