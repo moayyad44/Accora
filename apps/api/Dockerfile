@@ -27,6 +27,11 @@ COPY --from=deps /repo/apps/api/node_modules /repo/apps/api/node_modules
 COPY --from=build /repo/apps/api/dist /repo/apps/api/dist
 COPY --from=build /repo/apps/api/prisma /repo/apps/api/prisma
 COPY apps/api/package.json /repo/apps/api/package.json
+COPY apps/api/tsconfig.json /repo/apps/api/tsconfig.json
+# Admin recovery tools (e.g. scripts/reset-password.ts), run via `docker
+# compose exec api pnpm run reset-password ...` — not part of the compiled
+# dist/ since they're invoked directly through ts-node, not the server.
+COPY apps/api/scripts /repo/apps/api/scripts
 WORKDIR /repo/apps/api
 
 EXPOSE 3000
