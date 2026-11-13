@@ -41,10 +41,17 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
 
   return (
     <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-4">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
           <Menu className="size-5" />
         </Button>
+
+        <div className="hidden items-center gap-2 lg:flex">
+          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-on-primary">
+            أ
+          </div>
+          <span className="text-sm font-semibold text-foreground">{t("common.appName")}</span>
+        </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
